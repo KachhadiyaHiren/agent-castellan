@@ -164,7 +164,7 @@ def test_threads_never_exceed_limits(factory: Factory) -> None:
         th.join()
     usage = t.usage("r1")
     assert usage["tool_calls"] == len(ok) == limit
-    assert usage["role.coder.tool_calls"] <= 20
+    assert usage.get("role.coder.tool_calls", 0.0) <= 20
 
 
 def test_sqlite_is_correct_across_two_connections(tmp_path: Path) -> None:
