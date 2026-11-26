@@ -1,0 +1,102 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-castellan"
+version = "0.0.1"
+description = "Least-privilege permissions for multi-agent AI systems: YAML allow/deny/ask rules, delegation that can only shrink, approvals, budgets and a tamper-evident audit log."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "Hiren Kachhadiya" }]
+keywords = ["ai-agents", "multi-agent", "mcp", "authorization", "policy-as-code", "guardrails"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Security",
+  "Typing :: Typed",
+]
+dependencies = [
+  "pydantic>=2.6,<3",
+  "ruamel.yaml>=0.18",
+  "typer>=0.12",
+  "rich>=13",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.2"]
+langgraph = ["langgraph>=0.2"]
+
+[project.urls]
+Homepage = "https://github.com/KachhadiyaHiren/agent-castellan"
+Repository = "https://github.com/KachhadiyaHiren/agent-castellan"
+Issues = "https://github.com/KachhadiyaHiren/agent-castellan/issues"
+Changelog = "https://github.com/KachhadiyaHiren/agent-castellan/blob/main/CHANGELOG.md"
+
+[project.scripts]
+castellan = "agent_castellan.cli.app:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "pytest-cov>=5",
+  "pytest-xdist>=3.5",
+  "hypothesis>=6.100",
+  "pytest-benchmark>=4.0",
+  "ruff>=0.6",
+  "mypy>=1.11",
+  "mkdocs-material>=9.5",
+  "pre-commit>=3.8",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_castellan"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "N", "S", "PT", "PL"]
+ignore = ["PLR0913", "PLR0917", "PLC0415", "PLR2004", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "PLR2004", "S105", "S106"]
+# Enum bases are kept exactly as specified in PLAN.md section 4.3.
+"src/agent_castellan/models.py" = ["UP042"]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers --cov=agent_castellan --cov-report=term-missing --cov-fail-under=90"
+testpaths = ["tests"]
+markers = [
+  "slow: slower than a second; excluded from quick runs",
+  "needs_ws1: requires the WS1 policy loader to be implemented",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["agent_castellan"]
+
+[tool.coverage.report]
+# Phase 0 only: the gate covers the frozen core. Workstream packages are still stubs.
+# Each workstream checks its own package, for example:
+#   uv run coverage report --include='src/agent_castellan/policy/*' --fail-under=90
+include = [
+  "src/agent_castellan/models.py",
+  "src/agent_castellan/guard.py",
+  "src/agent_castellan/testing/*",
+]
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]
