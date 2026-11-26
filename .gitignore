@@ -20,3 +20,4 @@ castellan-audit.jsonl
 *.sqlite
 *.db
 .benchmarks/
+site/
