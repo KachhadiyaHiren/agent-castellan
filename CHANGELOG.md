@@ -7,3 +7,4 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 - Add project foundation: core models, component interfaces, `Guard` orchestration, test fakes, CLI skeleton and CI.
+- Add hash-chained audit log with verify/tail helpers and policy lint checks L001-L007.
