@@ -62,9 +62,15 @@ def lint(
     raise typer.Exit(1 if any(f.severity == "error" for f in findings) else 0)
 
 
+_HELP = (
+    "Find shadowed, duplicate, over-broad and unreachable rules (checks L001-L007).\n\n"
+    "Exit 1 if any error-severity finding exists. --format github emits workflow annotations."
+)
+
+
 def register(app: typer.Typer) -> None:
     """Register the `lint` command on the CLI app."""
     app.command(
         "lint",
-        help="Find shadowed, duplicate, over-broad and unreachable rules (checks L001-L007).\n\nExit 1 if any error-severity finding exists. --format github emits workflow annotations.",
+        help=_HELP,
     )(lint)

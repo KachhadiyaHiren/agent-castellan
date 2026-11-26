@@ -186,9 +186,15 @@ def run_tests(
     raise typer.Exit(1 if failed or errored else 0)
 
 
+_HELP = (
+    "Run policy test files (YAML with a policy path and cases) and report pass/fail.\n\n"
+    "Exit 1 if any case fails or a file cannot be run. Use --junit for CI reports."
+)
+
+
 def register(app: typer.Typer) -> None:
     """Register the `test` command on the CLI app."""
     app.command(
         "test",
-        help="Run policy test files (YAML with a policy path and cases) and report pass/fail.\n\nExit 1 if any case fails or a file cannot be run. Use --junit for CI reports.",
+        help=_HELP,
     )(run_tests)

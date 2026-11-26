@@ -39,9 +39,17 @@ def check(
     raise typer.Exit(exit_code_for(decision.effect))
 
 
+_HELP = (
+    "Dry-run one tool call against a policy and print the decision.\n\n"
+    "Exit codes: 0 allow, 1 deny, 2 ask (approval needed), 3 error.\n\n"
+    "Example: castellan check team.yaml --role coder --tool fs.write "
+    '--args \'{"path": "/w/a"}\''
+)
+
+
 def register(app: typer.Typer) -> None:
     """Register the `check` command on the CLI app."""
     app.command(
         "check",
-        help='Dry-run one tool call against a policy and print the decision.\n\nExit codes: 0 allow, 1 deny, 2 ask (approval needed), 3 error.\n\nExample: castellan check team.yaml --role coder --tool fs.write --args \'{"path": "/workspace/a.py"}\'',
+        help=_HELP,
     )(check)
