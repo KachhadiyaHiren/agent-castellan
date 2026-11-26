@@ -52,4 +52,7 @@ def explain(
 
 def register(app: typer.Typer) -> None:
     """Register the `explain` command on the CLI app."""
-    app.command("explain", help="Explain why a call got its decision.")(explain)
+    app.command(
+        "explain",
+        help="Show every rule considered for a call and why it matched or not.\n\nTakes the same options and exit codes as `castellan check`.",
+    )(explain)

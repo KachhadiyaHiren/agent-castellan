@@ -64,4 +64,7 @@ def lint(
 
 def register(app: typer.Typer) -> None:
     """Register the `lint` command on the CLI app."""
-    app.command("lint", help="Lint a policy.")(lint)
+    app.command(
+        "lint",
+        help="Find shadowed, duplicate, over-broad and unreachable rules (checks L001-L007).\n\nExit 1 if any error-severity finding exists. --format github emits workflow annotations.",
+    )(lint)

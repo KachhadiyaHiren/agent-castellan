@@ -188,4 +188,7 @@ def run_tests(
 
 def register(app: typer.Typer) -> None:
     """Register the `test` command on the CLI app."""
-    app.command("test", help="Run policy test files.")(run_tests)
+    app.command(
+        "test",
+        help="Run policy test files (YAML with a policy path and cases) and report pass/fail.\n\nExit 1 if any case fails or a file cannot be run. Use --junit for CI reports.",
+    )(run_tests)
