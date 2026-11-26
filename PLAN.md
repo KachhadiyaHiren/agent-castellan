@@ -582,22 +582,45 @@ A small but real multi-agent app that shows every feature. It is the demo in the
 - LLM layer behind a tiny `ChatModel` protocol with two implementations: `ScriptedModel` (deterministic, used in tests and CI) and `OpenAICompatibleModel` (any OpenAI-compatible HTTP endpoint via `httpx`; configured by env `CASTELLAN_EXAMPLE_BASE_URL`, `CASTELLAN_EXAMPLE_MODEL`, `CASTELLAN_EXAMPLE_API_KEY`). No vendor SDKs.
 - Scenarios (each a test): happy path; coder tries to read `.env` → denied and adapts; researcher tries to delegate further → blocked by depth; runaway researcher hits per-role budget; coder write → reviewer approves → retry succeeds; tampered grant token → rejected.
 - `python -m examples.multi_agent_team --scripted` prints a colourful timeline (rich) of agents, calls and decisions.
+- `examples/multi_agent_team/README.md` is a full walkthrough tutorial: the team diagram (Mermaid), the policy file explained rule by rule, each scenario with the exact timeline output and an explanation of which rule or grant produced each decision, and how to run it against a real model.
 
-### 5.7 WS7 — Docs, cookbook, benchmarks
-- mkdocs-material site: Getting started (5 minutes), Concepts, Policy language reference (generated tables from WS1 operator registry), Multi-agent delegation, Approvals, Audit, MCP proxy, LangGraph, CLI reference (generated from typer), Security model & threat model, FAQ.
-- Cookbook (`examples/policies/`, each with a test file): read-only research agent, coding agent in a sandbox dir, payments with approval, GitHub agent (no force-push, no deleting repos), database agent (SELECT only via regex), customer-support agent (PII redaction note), office-hours only (`time.hour_utc`), two-person rule (approval by `role:lead`), staging vs prod by `args.env`, multi-agent research team.
-- Benchmarks: `pytest-benchmark` for decide (10/50/500 rules), verify chain (depth 1/3/5), audit append (fsync on/off). Publish a table in docs.
-- README: problem, 20-line quickstart, multi-agent diagram, feature table, comparison table (honest, linking the other projects), badges.
+> **Priority update (Phase 2 onward): documentation is the main deliverable.** The project must work end to end, but exhaustive testing is optional. Every Phase 2 workstream is judged first on the clarity and accuracy of its writing. Follow the documentation standard in §5.10.
 
-### 5.8 WS8 — Hardening (property tests, integration, threat review)
-- Hypothesis properties:
-  - Attenuation: for random grant chains, any call allowed by the child chain is allowed by every prefix.
-  - Deny overrides: adding a matching deny rule never turns deny into allow.
-  - Normalization idempotence: `normalize(normalize(x)) == normalize(x)`; `../` tricks never escape a glob like `/workspace/**`.
-  - Audit: any single-byte change in a log file is detected by `verify`.
-  - Condition DSL: random documents either load or raise `PolicyError` (never another exception).
-- Integration tests: real components wired through `Guard.from_file` with the cookbook policies.
-- `docs/site/security.md` threat model: what Castellan protects against (over-privileged sub-agents, prompt-injected tool calls, approval replay, log tampering) and what it does **not** (a malicious host process that bypasses the guard, tools that ignore the decision).
+### 5.7a WS7a — Documentation site (the most important workstream)
+- mkdocs-material site under `docs/site/`, `mkdocs.yml` at the root, with navigation tabs, search, code copy buttons, light/dark mode, Mermaid diagrams enabled.
+- Pages, in this order:
+  1. **Home** — the problem in three sentences, a diagram, what Castellan is and is not, 4 feature cards, links onward.
+  2. **Getting started (5 minutes)** — install, first policy, first `castellan check`, first `Guard.authorize` in Python, first delegation. Every step shows the exact output.
+  3. **Concepts** — principals, tool calls, rules, decisions, grants, runs; the decision algorithm as a Mermaid flowchart; the `authorize` pipeline as a sequence diagram.
+  4. **Writing policies** — a guided tour from a one-rule policy to a multi-agent policy, explaining why at each step.
+  5. **Policy language reference** — every key, every operator (table with operand type and an example each), matching rules, error messages and how to fix them.
+  6. **Multi-agent delegation** — why sub-agents must never gain power; how grants shrink; the HMAC chain explained with a diagram; passing tokens between processes; common mistakes.
+  7. **Approvals** — human and agent approvers, exact-call binding, expiry, the retry pattern, with a sequence diagram.
+  8. **Budgets** — run-tree, per-role, per-grant limits; cost units.
+  9. **Audit log** — format, hash chain diagram, `audit verify`, what tampering looks like.
+  10. **Integrations** — MCP proxy (with a config example for a common MCP client), `@guarded`, LangGraph.
+  11. **CLI reference** — every command, options, exit codes, sample output.
+  12. **Testing and linting policies** — `castellan test`, `castellan lint` with every lint id explained and how to fix it; using them in CI (GitHub Actions snippet).
+  13. **Security model** — threat model: what Castellan protects against (over-privileged sub-agents, prompt-injected tool calls, approval replay, log tampering) and what it does **not** (a malicious host process that bypasses the guard, tools that ignore the decision); key management advice.
+  14. **Architecture** — component diagram, module map, design decisions and trade-offs (why deny-overrides, why HMAC not public-key, why data-only conditions), how to extend.
+  15. **FAQ** and **Glossary**.
+
+### 5.7b WS7b — README, cookbook, community docs
+- **README.md** (the project's front page; treat it as the most-read document): logo-free header with badges (CI, PyPI, Python versions, license), one-sentence pitch, a "Why" section with the multi-agent problem, a Mermaid diagram of delegation, a 20-line quickstart that runs as written, a feature table, a short multi-agent example, the honest comparison table against existing single-agent gates (linking them), links to docs, roadmap, contributing, license.
+- **Cookbook** `examples/policies/`: ten policies — read-only research agent, coding agent in a sandbox dir, payments with approval, GitHub agent (no force-push, no deleting repos), database agent (SELECT only via regex), customer-support agent, office-hours only (`time.hour_utc`), two-person rule (approval by `role:lead`), staging vs prod by `args.env`, multi-agent research team. Each has a header comment explaining the scenario, every rule commented with *why*, and a `castellan test` file. Plus `examples/policies/README.md` indexing them with one paragraph each.
+- **CONTRIBUTING.md** rewritten as a real guide: dev setup, project layout, how to add an operator / lint rule / integration (step-by-step), commit style, how reviews work. Add issue templates (bug, feature) and a PR template.
+
+### 5.8 WS8 — Hardening (reduced, optional)
+- Only: integration tests wiring real components through `Guard.from_file` with three cookbook policies, and one Hypothesis property for attenuation. Skip if time is short.
+
+### 5.10 Documentation standard (applies to every Phase 2 workstream)
+- **Audience first:** each page opens with who it is for and what they will be able to do after reading.
+- **Structure per page:** what it is → why it matters → how to use it → complete example → pitfalls → where to go next.
+- **Show, then explain:** every concept has a runnable example with its real output, copied from an actual run, never invented.
+- **Diagrams:** use Mermaid for flows, sequences and architecture; at least one diagram on Home, Concepts, Delegation, Approvals, Audit and Architecture.
+- **Plain language:** short sentences, active voice, consistent terms from §2 ("principal", "grant", "run"); define a term the first time it appears and link to the glossary.
+- **Accurate:** every code snippet runs against the current code; every CLI option and exit code matches `--help`. `mkdocs build --strict` must pass with no broken links.
+- **Docstrings:** every public class and function has a docstring with a one-line summary, args, returns, raises and a short example where useful; docs pull API reference from them with `mkdocstrings`.
 
 ### 5.9 WS9 — Release
 - `release.yml`: on tag `v*` → build with `uv build` → publish with PyPI **trusted publishing** (no token in repo) → GitHub release with changelog section.
@@ -611,7 +634,7 @@ A small but real multi-agent app that shows every feature. It is the demo in the
 |---|---|---|
 | **0 Foundation** | P0 (single session) | — |
 | **1 Core** | WS1 policy · WS2 delegation · WS3 approvals+budgets · WS4 audit+lint+CLI · WS5 integrations | Phase 0 merged |
-| **2 Showcase & hardening** | WS6 multi-agent team · WS7 docs+cookbook+bench · WS8 hardening | Phase 1 merged |
+| **2 Showcase & documentation** | WS6 multi-agent team + walkthrough · WS7a documentation site · WS7b README, cookbook, community docs · (WS8 optional) | Phase 1 merged |
 | **3 Release** | WS9 (single session) | Phase 2 merged |
 
 **Why Phase 1 can run fully in parallel:** each WS codes against `interfaces.py` and tests with `testing/fakes.py`. WS2 needs the condition compiler from WS1: Phase 0 ships `policy/conditions.py` with the **final signature** and a minimal working implementation for `eq`/`in`/`glob`, and WS1 replaces the body. WS2 tests use only those three operators.
