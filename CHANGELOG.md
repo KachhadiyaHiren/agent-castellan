@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 - Add project foundation: core models, component interfaces, `Guard` orchestration, test fakes, CLI skeleton and CI.
+<<<<<<< HEAD
 - Add delegation: chained-HMAC grants with attenuation checks, conservative glob subsumption, token serialization and `ChainVerifier`.
+=======
+<<<<<<< HEAD
+>>>>>>> 9c88fa3 (feat(policy): implement PolicyEngine decision algorithm with trace)
 - Add approval stores and budget trackers (memory and SQLite backends).
 - Add hash-chained audit log with verify/tail helpers and policy lint checks L001-L007.
+=======
+- Add policy engine: YAML loader with line-numbered errors, condition DSL, call normalization and `PolicyEngine`.
+>>>>>>> d4a1ace (feat(policy): implement PolicyEngine decision algorithm with trace)
