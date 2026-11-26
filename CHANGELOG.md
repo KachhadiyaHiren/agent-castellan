@@ -7,3 +7,4 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 - Add project foundation: core models, component interfaces, `Guard` orchestration, test fakes, CLI skeleton and CI.
+- Add delegation: chained-HMAC grants with attenuation checks, conservative glob subsumption, token serialization and `ChainVerifier`.
