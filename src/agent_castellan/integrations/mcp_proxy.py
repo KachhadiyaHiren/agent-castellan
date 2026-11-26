@@ -148,11 +148,10 @@ class McpProxy:
                 return line
             self._list_ids.discard(key)
         result = message.get("result")
-        tools = result.get("tools") if isinstance(result, dict) else None
-        if not isinstance(tools, list):
+        if not isinstance(result, dict) or not isinstance(result.get("tools"), list):
             return line
-        visible = [t for t in tools if not self._hidden(t)]
-        result["tools"] = visible
+        tools = result["tools"]
+        result["tools"] = [t for t in tools if not self._hidden(t)]
         return _dump(message)
 
     def _hidden(self, tool: Any) -> bool:
