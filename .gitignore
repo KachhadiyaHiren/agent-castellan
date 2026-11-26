@@ -12,7 +12,7 @@ htmlcov/
 dist/
 build/
 *.egg-info/
-site/
+/site/
 .DS_Store
 .idea/
 .vscode/
@@ -20,4 +20,4 @@ castellan-audit.jsonl
 *.sqlite
 *.db
 .benchmarks/
-site/
+/site/
