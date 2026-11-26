@@ -8,3 +8,4 @@ All notable changes to this project are documented here. The format follows
 
 - Add project foundation: core models, component interfaces, `Guard` orchestration, test fakes, CLI skeleton and CI.
 - Add approval stores and budget trackers (memory and SQLite backends).
+- Add hash-chained audit log with verify/tail helpers and policy lint checks L001-L007.
