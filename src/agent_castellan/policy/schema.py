@@ -2,32 +2,35 @@
 
 from __future__ import annotations
 
-from typing import Any
+import re
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..models import Effect
+
+APPROVER_RE = re.compile(r"human|role:\S+|agent:\S+")
 
 
 class Defaults(BaseModel):
     """Fallback behaviour when no rule matches."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
     effect: Effect = Effect.DENY
 
 
 class AgentConfig(BaseModel):
     """Per-role delegation settings."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
     can_delegate_to: tuple[str, ...] = ()
-    max_delegation_depth: int | None = None
+    max_delegation_depth: int | None = Field(default=None, ge=0)
 
 
 class Rule(BaseModel):
     """One allow, deny or ask rule."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
     id: str
     description: str | None = None
     agents: tuple[str, ...] = ("*",)
@@ -39,27 +42,48 @@ class Rule(BaseModel):
     priority: int = 0
     line: int | None = None
 
+    @field_validator("id")
+    @classmethod
+    def _id_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("rule id must not be blank")
+        return value
+
+    @field_validator("agents", "tools")
+    @classmethod
+    def _non_empty(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        if not value or any(not item.strip() for item in value):
+            raise ValueError("must be a non-empty list of non-empty strings")
+        return value
+
+    @field_validator("approver")
+    @classmethod
+    def _approver_form(cls, value: str) -> str:
+        if not APPROVER_RE.fullmatch(value):
+            raise ValueError("approver must be 'human', 'role:<role>' or 'agent:<id>'")
+        return value
+
 
 class RunBudget(BaseModel):
     """Limits shared across a whole run tree."""
 
-    model_config = ConfigDict(frozen=True)
-    max_tool_calls: int | None = None
-    max_cost_units: float | None = None
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    max_tool_calls: int | None = Field(default=None, ge=0)
+    max_cost_units: float | None = Field(default=None, ge=0)
 
 
 class RoleBudget(BaseModel):
     """Limits applied per agent role."""
 
-    model_config = ConfigDict(frozen=True)
-    max_tool_calls: int | None = None
-    max_cost_units: float | None = None
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    max_tool_calls: int | None = Field(default=None, ge=0)
+    max_cost_units: float | None = Field(default=None, ge=0)
 
 
 class BudgetsConfig(BaseModel):
     """The `budgets` section of a policy."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
     run: RunBudget = Field(default_factory=RunBudget)
     per_role: dict[str, RoleBudget] = Field(default_factory=dict)
 
@@ -67,22 +91,22 @@ class BudgetsConfig(BaseModel):
 class ApprovalsConfig(BaseModel):
     """The `approvals` section of a policy."""
 
-    model_config = ConfigDict(frozen=True)
-    ttl_seconds: int = 600
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    ttl_seconds: int = Field(default=600, gt=0)
 
 
 class AuditConfig(BaseModel):
     """The `audit` section of a policy."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
     path: str = "./castellan-audit.jsonl"
 
 
 class Policy(BaseModel):
     """A loaded, validated policy."""
 
-    model_config = ConfigDict(frozen=True)
-    version: int = 1
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    version: Literal[1] = 1
     defaults: Defaults = Field(default_factory=Defaults)
     agents: dict[str, AgentConfig] = Field(default_factory=dict)
     rules: tuple[Rule, ...] = ()
@@ -90,3 +114,10 @@ class Policy(BaseModel):
     approvals: ApprovalsConfig = Field(default_factory=ApprovalsConfig)
     audit: AuditConfig = Field(default_factory=AuditConfig)
     source: str | None = None
+
+    @field_validator("agents", mode="before")
+    @classmethod
+    def _null_roles_are_empty(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {role: ({} if cfg is None else cfg) for role, cfg in value.items()}
+        return value
