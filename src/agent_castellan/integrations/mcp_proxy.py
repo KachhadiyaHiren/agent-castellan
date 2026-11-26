@@ -6,6 +6,7 @@ The proxy speaks newline-delimited JSON-RPC (the MCP stdio transport) and does n
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import subprocess
@@ -99,14 +100,18 @@ class McpProxy:
         params = message.get("params")
         name = params.get("name") if isinstance(params, dict) else None
         arguments = params.get("arguments") if isinstance(params, dict) else None
-        if not isinstance(name, str) or not name or not (
-            arguments is None or isinstance(arguments, dict)
+        if (
+            not isinstance(name, str)
+            or not name
+            or not (arguments is None or isinstance(arguments, dict))
         ):
-            return ClientAction(reply=_error(request_id, INVALID_PARAMS, "invalid tools/call params"))
+            return ClientAction(
+                reply=_error(request_id, INVALID_PARAMS, "invalid tools/call params")
+            )
         try:
             call = ToolCall(tool=self.tool_name(name), args=arguments or {})
             decision = self._guard.authorize(self._principal, call)
-        except Exception as exc:  # noqa: BLE001 - fail closed on any guard failure
+        except Exception as exc:
             decision = Decision(
                 effect=Effect.DENY, reason=f"authorization failed: {exc}", source="invalid"
             )
@@ -186,12 +191,10 @@ def run_proxy(
     reader.start()
     server_in = child.stdin
     try:
-        for line in client_in:
-            if not line.strip():
+        for raw in client_in:
+            if not raw.strip():
                 continue
-            if not line.endswith(b"\n"):
-                line += b"\n"
-            action = proxy.on_client_line(line)
+            action = proxy.on_client_line(raw if raw.endswith(b"\n") else raw + b"\n")
             if action.reply is not None:
                 write_client(action.reply)
             if action.forward is not None:
@@ -201,10 +204,8 @@ def run_proxy(
                 except (BrokenPipeError, OSError):
                     break
     finally:
-        try:
+        with contextlib.suppress(BrokenPipeError, OSError):
             server_in.close()
-        except (BrokenPipeError, OSError):
-            pass
         try:
             child.wait(timeout=_SHUTDOWN_WAIT)
         except subprocess.TimeoutExpired:
