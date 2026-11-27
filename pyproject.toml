@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agent-castellan"
-version = "0.0.1"
+version = "0.1.0"
 description = "Least-privilege permissions for multi-agent AI systems: YAML allow/deny/ask rules, delegation that can only shrink, approvals, budgets and a tamper-evident audit log."
 readme = "README.md"
 license = "Apache-2.0"

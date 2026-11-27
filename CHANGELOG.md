@@ -6,14 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-- Add project foundation: core models, component interfaces, `Guard` orchestration, test fakes, CLI skeleton and CI.
-- Add approval stores and budget trackers (memory and SQLite backends).
-- Add the `castellan` CLI: `check`, `explain`, `test` (with JUnit output), `lint`, `audit verify|tail` and `approve list|accept|reject`.
-- Add delegation: chained-HMAC grants with attenuation checks, conservative glob subsumption, token serialization and `ChainVerifier`.
-- Add approval stores and budget trackers (memory and SQLite backends).
-- Add hash-chained audit log with verify/tail helpers and policy lint checks L001-L007.
-- Add the multi-agent reference team example (`examples/multi_agent_team`) with a scripted model, six scenarios and a full walkthrough README.
-<<<<<<< HEAD
-- Add integrations: `@guarded` decorator with `guard_context`, stdio MCP proxy (`castellan mcp-proxy`) and LangGraph `guard_tools`.
-- Add policy engine: YAML loader with line-numbered errors, condition DSL, call normalization and `PolicyEngine`.
-- Add README, ten-policy cookbook with tests, rewritten CONTRIBUTING guide and issue/PR templates.
+## [0.1.0] - 2026-11-27
+
+First public release.
+
+### Added
+
+- **Policy engine:** YAML policy language with a data-only condition DSL, tool and agent matching, call normalization (paths, URLs, tool names), deny-overrides decisions and a full decision trace. Load errors report the file, line and rule.
+- **Multi-agent delegation:** chained-HMAC grants that can only shrink (tools, conditions, expiry, call limits), token serialization for passing grants between processes, and `ChainVerifier`.
+- **Approvals:** `ask` rules routed to a human, a role or a specific agent; approvals bound to the exact call, single-use and expiring. Memory and SQLite backends.
+- **Budgets:** limits per run tree, per role, per agent and per grant, with optional cost units. Memory and SQLite backends.
+- **Audit log:** append-only, hash-chained JSONL with `verify` that pinpoints the first tampered entry.
+- **Policy tooling:** lint checks L001–L007 and policy unit tests.
+- **CLI:** `castellan check`, `explain`, `test` (with JUnit output), `lint` (text, JSON and GitHub annotations), `audit verify|tail`, `approve list|accept|reject` and `mcp-proxy`.
+- **Integrations:** `@guarded` decorator with `guard_context`, a stdio MCP proxy that enforces policy on `tools/call`, and a LangGraph `guard_tools` wrapper.
+- **Examples:** a four-agent reference team (planner, researcher, coder, reviewer) with six scenarios and a walkthrough, and a cookbook of ten commented policies with tests.
+- **Documentation:** a full documentation site covering getting started, concepts, guides, reference, security model and architecture.
+
+[Unreleased]: https://github.com/KachhadiyaHiren/agent-castellan/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/KachhadiyaHiren/agent-castellan/releases/tag/v0.1.0
