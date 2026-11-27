@@ -92,12 +92,4 @@ branch = true
 source = ["agent_castellan"]
 
 [tool.coverage.report]
-# Phase 0 only: the gate covers the frozen core. Workstream packages are still stubs.
-# Each workstream checks its own package, for example:
-#   uv run coverage report --include='src/agent_castellan/policy/*' --fail-under=90
-include = [
-  "src/agent_castellan/models.py",
-  "src/agent_castellan/guard.py",
-  "src/agent_castellan/testing/*",
-]
 exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]

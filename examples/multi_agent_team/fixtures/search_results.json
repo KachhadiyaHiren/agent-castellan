@@ -1,0 +1,22 @@
+{
+  "results": [
+    {
+      "url": "https://example.test/token-bucket",
+      "title": "Token bucket rate limiting",
+      "snippet": "A token bucket refills at a fixed rate and lets short bursts through."
+    },
+    {
+      "url": "https://example.test/sliding-window",
+      "title": "Sliding window rate limiting",
+      "snippet": "A sliding window counts requests over the last N seconds."
+    },
+    {
+      "url": "https://example.test/python-time",
+      "title": "Python monotonic clocks",
+      "snippet": "Use time.monotonic() to measure elapsed time for a rate limiter."
+    }
+  ],
+  "pages": {
+    "https://example.test/token-bucket": "Token bucket: keep `tokens` and `last_refill`. On each request add (now - last_refill) * rate tokens, cap at capacity, then take one token or reject."
+  }
+}
