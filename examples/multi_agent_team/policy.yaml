@@ -1,0 +1,110 @@
+# Policy for the multi-agent reference team.
+#
+# Read this file top to bottom: the README walks through it rule by rule.
+# Decision order (PLAN.md section 2): any matching `deny` wins, then any `ask`,
+# then any `allow`, and if nothing matches the `defaults` effect applies.
+version: 1
+
+defaults:
+  # Why: an agent can only do what a rule explicitly allows. A forgotten tool
+  # is a blocked tool, never an open one.
+  effect: deny
+
+agents:
+  planner:
+    # Why: the planner is the only role that fans work out. It may create
+    # these three roles and nothing else.
+    can_delegate_to: [researcher, coder, reviewer]
+    # Why: planner is depth 0, so its children are depth 1. A limit of 1 means
+    # the planner may create children but those children sit at the deepest
+    # allowed level.
+    max_delegation_depth: 1
+  researcher:
+    # Why: this is the "runaway delegation" guard. The researcher is *listed*
+    # as able to hand work to a coder, but its depth limit is 1 and it already
+    # sits at depth 1, so the engine refuses. Delegation stops at the first
+    # layer of sub-agents.
+    can_delegate_to: [coder]
+    max_delegation_depth: 1
+  # Why: coder and reviewer list no `can_delegate_to`, so they can never
+  # create sub-agents.
+  coder: {}
+  reviewer: {}
+
+rules:
+  - id: no-secrets
+    description: Nobody touches secret files, whichever agent asks
+    # Why: secrets are the highest-impact loss. This is a `deny`, and deny
+    # overrides every allow, so no other rule can re-open it.
+    tools: ["*"]
+    when:
+      any:
+        - args.path: { glob: "**/.env*" }
+        - args.path: { glob: "**/*.pem" }
+    effect: deny
+    reason: Secret files are off limits
+
+  - id: no-delete
+    description: Nothing in this team may delete files
+    # Why: the demo tools do not even implement fs.delete. The explicit deny
+    # means that if someone adds it later, it starts out blocked, and
+    # `castellan explain` shows a rule id instead of "default".
+    tools: ["fs.delete"]
+    effect: deny
+    reason: Deleting files is not part of this team's job
+
+  - id: read-workspace
+    description: Coder and reviewer may read and list the workspace
+    # Why: reading is how the coder understands the project and how the
+    # reviewer checks a change. The conditions keep both inside /workspace.
+    # (`/workspace/**` does not match the bare directory `/workspace`, so
+    # listing the root needs its own `eq`.)
+    # The researcher is deliberately missing: it works on the web only.
+    agents: [coder, reviewer]
+    tools: ["fs.read", "fs.list"]
+    when:
+      any:
+        - args.path: { eq: /workspace }
+        - args.path: { glob: "/workspace/**" }
+    effect: allow
+
+  - id: write-needs-review
+    description: Every coder write must be approved by a reviewer agent
+    # Why: writes change the world. The coder may propose them, but a
+    # different agent (role:reviewer) must approve each exact call. An agent
+    # can never approve its own request, and the approval works once, for
+    # that exact path and content only.
+    agents: [coder]
+    tools: ["fs.write"]
+    when:
+      args.path: { glob: "/workspace/**" }
+    effect: ask
+    approver: role:reviewer
+
+  - id: research-web
+    description: Researchers may search and fetch, near the top of the tree
+    # Why: web access is the researcher's whole job. The depth condition
+    # means a researcher pushed deep into a delegation chain loses it.
+    agents: [researcher]
+    tools: ["web.search", "web.fetch"]
+    when:
+      agent.depth: { lte: 2 }
+    effect: allow
+
+budgets:
+  run:
+    # Why: a hard ceiling for the whole delegation tree, whatever the roles do.
+    max_tool_calls: 50
+  per_role:
+    # Why: search loops are the classic runaway. Kept deliberately small so the
+    # demo scenario hits it quickly; real teams would use a larger number.
+    researcher:
+      max_tool_calls: 3
+
+approvals:
+  # Why: an approval nobody acts on should not stay valid for ever.
+  ttl_seconds: 600
+
+audit:
+  # The example runner rewrites this to a file inside its work directory.
+  path: ./castellan-audit.jsonl
