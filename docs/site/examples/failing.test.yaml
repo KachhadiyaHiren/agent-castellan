@@ -1,0 +1,15 @@
+policy: team.yaml
+cases:
+  - name: coder can read the workspace
+    agent: { role: coder, depth: 1 }
+    call: { tool: fs.read, args: { path: /workspace/app.py } }
+    expect: allow
+  - name: coder write is allowed outright
+    agent: { role: coder, depth: 1 }
+    call: { tool: fs.write, args: { path: /workspace/app.py, content: "x" } }
+    expect: allow
+  - name: wrong rule named
+    agent: { role: coder, depth: 1 }
+    call: { tool: fs.read, args: { path: /workspace/.env } }
+    expect: deny
+    expect_rule: read-workspace

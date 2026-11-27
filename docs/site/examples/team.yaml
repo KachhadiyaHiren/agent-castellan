@@ -1,0 +1,68 @@
+version: 1
+
+defaults:
+  effect: deny
+
+agents:
+  planner:
+    can_delegate_to: [researcher, coder, reviewer]
+    max_delegation_depth: 2
+  researcher: {}
+  coder: {}
+  reviewer: {}
+
+rules:
+  - id: no-secrets
+    description: Never touch secret files, whoever asks
+    tools: ["*"]
+    when:
+      any:
+        - args.path: { glob: "**/.env*" }
+        - args.path: { glob: "**/*.pem" }
+    effect: deny
+    reason: Secret files are off limits
+
+  - id: read-workspace
+    agents: [researcher, coder, reviewer]
+    tools: ["fs.read", "fs.list"]
+    when:
+      args.path: { glob: "/workspace/**" }
+    effect: allow
+
+  - id: write-needs-review
+    agents: [coder]
+    tools: ["fs.write", "fs.delete"]
+    when:
+      args.path: { glob: "/workspace/**" }
+    effect: ask
+    approver: role:reviewer
+    reason: A reviewer must approve every write
+
+  - id: shallow-web
+    agents: [researcher]
+    tools: ["web.search", "web.fetch"]
+    when:
+      agent.depth: { lte: 2 }
+    effect: allow
+
+  - id: small-payments-only
+    tools: ["payments.*"]
+    when:
+      all:
+        - args.amount: { lte: 100 }
+        - args.currency: { in: [USD, EUR] }
+    effect: ask
+    approver: human
+
+budgets:
+  run:
+    max_tool_calls: 200
+  per_role:
+    researcher: { max_tool_calls: 80 }
+    coder: { max_tool_calls: 60 }
+
+approvals:
+  ttl_seconds: 600
+
+audit:
+  path: ./castellan-audit.jsonl

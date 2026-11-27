@@ -1,0 +1,8 @@
+lint-demo.yaml:17: warning L001 allow rule 'allow-shell-ls' is shadowed by unconditional deny rule 'no-shell' and can never take effect [allow-shell-ls]
+lint-demo.yaml:26: error L002 duplicate rule id 'read-anything' [read-anything]
+lint-demo.yaml:22: warning L003 rule 'read-anything' allows every tool with no conditions [read-anything]
+lint-demo.yaml:36: error L004 rule 'web-for-intern' references role 'intern' in agents which is not defined in 'agents' [web-for-intern]
+lint-demo.yaml: error L004 role 'planner' can_delegate_to undefined role 'ghost'
+lint-demo.yaml:30: warning L005 ask rule 'write-needs-audit' needs approver role 'auditor' which can never exist in a run [write-needs-audit]
+lint-demo.yaml: warning L006 role 'auditor' is not reachable from any can_delegate_to chain
+lint-demo.yaml: warning L007 defaults.effect is 'allow': unmatched calls are permitted

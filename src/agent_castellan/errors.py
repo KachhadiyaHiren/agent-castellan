@@ -10,7 +10,16 @@ class CastellanError(Exception):
 
 
 class PolicyError(CastellanError):
-    """A policy file is invalid; the message names the file, line and rule."""
+    """A policy file is invalid; the message names the file, line and rule.
+
+    Attributes:
+        message: The problem, without the location prefix.
+        file: Policy file name, when known.
+        line: 1-based line number, when known.
+        rule_id: Id of the offending rule, when the problem is inside a rule.
+
+    The string form is `<file>:<line> rule '<id>': <message>`.
+    """
 
     def __init__(
         self,
@@ -33,11 +42,18 @@ class PolicyError(CastellanError):
 
 
 class GrantError(CastellanError):
-    """A delegation grant is invalid, widened, expired or tampered with."""
+    """A delegation grant is invalid, widened, expired or tampered with.
+
+    Also raised when the root key is too short or not valid hex.
+    """
 
 
 class PermissionDenied(CastellanError):  # noqa: N818
-    """A tool call was denied."""
+    """A tool call was denied.
+
+    Attributes:
+        decision: The full decision, including `reason`, `rule_id` and `trace`.
+    """
 
     def __init__(self, decision: Decision) -> None:
         self.decision = decision
@@ -45,7 +61,12 @@ class PermissionDenied(CastellanError):  # noqa: N818
 
 
 class ApprovalRequired(CastellanError):  # noqa: N818
-    """A tool call needs approval before it can run."""
+    """A tool call needs approval before it can run.
+
+    Attributes:
+        approval_id: Id to approve with `Guard.approve` or `castellan approve accept`.
+        decision: The `ask` decision, when available.
+    """
 
     def __init__(self, approval_id: str, decision: Decision | None = None) -> None:
         self.approval_id = approval_id

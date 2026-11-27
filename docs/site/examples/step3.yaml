@@ -1,0 +1,30 @@
+version: 1
+
+defaults:
+  effect: deny
+
+rules:
+  - id: read-workspace
+    tools: ["fs.read", "fs.list"]
+    when:
+      args.path: { glob: "/workspace/**" }
+    effect: allow
+
+  - id: no-secrets
+    tools: ["*"]
+    when:
+      any:
+        - args.path: { glob: "**/.env*" }
+        - args.path: { glob: "**/*.pem" }
+    effect: deny
+    reason: Secret files are off limits
+
+  - id: small-payments
+    tools: ["payments.*"]
+    when:
+      all:
+        - args.amount: { lte: 100 }
+        - args.currency: { in: [USD, EUR] }
+    effect: ask
+    approver: human
+    reason: Payments always need a human

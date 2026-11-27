@@ -39,7 +39,17 @@ def _last_line(fd: int) -> bytes | None:
 
 
 class AuditLog:
-    """Append-only, tamper-evident decision log."""
+    """Append-only, tamper-evident decision log in JSON Lines format.
+
+    Each entry stores the hash of the previous one, so editing or removing an entry in the
+    middle of the file is detected by `verify_log`. Writers take an exclusive file lock,
+    so several processes can append to one log.
+
+    Args:
+        path: Log file; created (with parent directories) on the first append.
+        clock: Time source for the `at` field.
+        fsync: Flush every entry to disk before returning. Turn off for speed in tests.
+    """
 
     def __init__(self, path: str | Path, clock: Clock, *, fsync: bool = True) -> None:
         self._path = Path(path)
@@ -47,7 +57,16 @@ class AuditLog:
         self._fsync = fsync
 
     def append(self, principal: Principal, call: ToolCall, decision: Decision) -> AuditEntry:
-        """Record one decision and return the stored entry."""
+        """Record one decision and return the stored entry.
+
+        Args:
+            principal: The agent that made the call.
+            call: The call that was decided.
+            decision: The decision reached.
+
+        Returns:
+            The entry as written, including its `seq`, `prev_hash` and `hash`.
+        """
         self._path.parent.mkdir(parents=True, exist_ok=True)
         fd = os.open(self._path, os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o600)
         try:
