@@ -1,0 +1,69 @@
+# Payments with human approval
+# ----------------------------
+# Scenario: a finance assistant can look at invoices and pay them. Small payments in
+# approved currencies need a human to click "approve". Large payments, or payments in
+# other currencies, are refused outright; the agent has to tell the user to do it by hand.
+#
+# Pattern shown: `ask` rules, numeric limits and a currency allow-list. When a call hits
+# an `ask` rule, Castellan creates an approval bound to that exact call (tool plus
+# arguments). Approving a 50 EUR payment does not approve a 90 EUR one.
+
+version: 1
+
+defaults:
+  effect: deny
+
+agents:
+  finance_agent: {}
+
+rules:
+  # Read-only lookups are safe and the agent needs them to do its job.
+  - id: read-invoices
+    agents: [finance_agent]
+    tools: ["invoices.get", "invoices.list"]
+    effect: allow
+
+  # Hard ceiling. Even a human approval cannot raise it, because deny overrides ask.
+  # Anything above 1000 must be done outside the agent.
+  - id: payment-ceiling
+    agents: [finance_agent]
+    tools: ["payments.*"]
+    when:
+      args.amount: { gt: 1000 }
+    effect: deny
+    reason: Payments above 1000 are never made by an agent
+
+  # Only currencies the finance team has agreed to handle. `not` + `in` reads as
+  # "currency is anything other than these".
+  - id: approved-currencies
+    agents: [finance_agent]
+    tools: ["payments.*"]
+    when:
+      not:
+        args.currency: { in: [USD, EUR] }
+    effect: deny
+    reason: Only USD and EUR payments are supported
+
+  # Everything left (<= 1000, USD/EUR) needs a human. Both conditions are repeated here
+  # so the rule stands on its own: if someone edits the deny rules above, this one still
+  # refuses to match an out-of-range call. A call that lacks `amount` fails the
+  # condition too, because a missing path makes every operator false.
+  - id: small-payments-need-approval
+    agents: [finance_agent]
+    tools: ["payments.send"]
+    when:
+      all:
+        - args.amount: { lte: 1000 }
+        - args.currency: { in: [USD, EUR] }
+    effect: ask
+    approver: human
+
+approvals:
+  # Approvals expire after 15 minutes so a forgotten request cannot be used next week.
+  ttl_seconds: 900
+
+budgets:
+  per_role:
+    finance_agent:
+      # A cap on calls is a cheap defence against an agent that retries a payment forever.
+      max_tool_calls: 50

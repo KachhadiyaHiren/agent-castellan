@@ -1,0 +1,47 @@
+policy: ../github-agent.yaml
+cases:
+  - name: reading a repository is allowed
+    agent: { role: github_agent }
+    call: { tool: github.get_file, args: { repo: acme/app, path: README.md } }
+    expect: allow
+    expect_rule: read-github
+
+  - name: opening an issue is allowed
+    agent: { role: github_agent }
+    call: { tool: github.create_issue, args: { repo: acme/app, title: "Bug" } }
+    expect: allow
+    expect_rule: contribute
+
+  - name: pushing a feature branch is allowed
+    agent: { role: github_agent }
+    call: { tool: github.push_branch, args: { repo: acme/app, branch: agent/fix-typo } }
+    expect: allow
+
+  - name: force-push is denied
+    agent: { role: github_agent }
+    call: { tool: github.push_branch, args: { repo: acme/app, branch: agent/fix-typo, force: true } }
+    expect: deny
+    expect_rule: no-force-push
+
+  - name: pushing to main is denied
+    agent: { role: github_agent }
+    call: { tool: github.push_branch, args: { repo: acme/app, branch: main } }
+    expect: deny
+    expect_rule: no-push-to-default-branch
+
+  - name: deleting a repository is denied
+    agent: { role: github_agent }
+    call: { tool: github.delete_repo, args: { repo: acme/app } }
+    expect: deny
+    expect_rule: no-repo-destruction
+
+  - name: merging asks a human
+    agent: { role: github_agent }
+    call: { tool: github.merge_pull_request, args: { repo: acme/app, number: 12 } }
+    expect: ask
+    expect_rule: merge-needs-human
+
+  - name: unknown github tools are denied by default
+    agent: { role: github_agent }
+    call: { tool: github.delete_branch_protection, args: { repo: acme/app } }
+    expect: deny

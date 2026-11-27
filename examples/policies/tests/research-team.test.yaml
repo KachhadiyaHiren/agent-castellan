@@ -1,0 +1,70 @@
+policy: ../research-team.yaml
+cases:
+  - name: researcher searches when started by the planner
+    agent: { role: researcher, depth: 1, parent_role: planner }
+    call: { tool: web.search, args: { query: "grant attenuation" } }
+    expect: allow
+    expect_rule: researcher-web
+
+  - name: a researcher with no planner parent is refused
+    agent: { role: researcher, depth: 0 }
+    call: { tool: web.search, args: { query: "grant attenuation" } }
+    expect: deny
+
+  - name: a researcher too deep in the tree is refused
+    agent: { role: researcher, depth: 2, parent_role: researcher }
+    call: { tool: web.search, args: { query: "x" } }
+    expect: deny
+
+  - name: researcher cannot write files
+    agent: { role: researcher, depth: 1, parent_role: planner }
+    call: { tool: fs.write, args: { path: /workspace/drafts/a.md, content: x } }
+    expect: deny
+
+  - name: writer saves a draft
+    agent: { role: writer, depth: 1, parent_role: planner }
+    call: { tool: fs.write, args: { path: /workspace/drafts/report.md, content: "# Report" } }
+    expect: allow
+    expect_rule: writer-drafts
+
+  - name: writer cannot write outside drafts
+    agent: { role: writer, depth: 1, parent_role: planner }
+    call: { tool: fs.write, args: { path: /workspace/plan/plan.md, content: x } }
+    expect: deny
+
+  - name: reviewer reads a draft
+    agent: { role: reviewer, depth: 1, parent_role: planner }
+    call: { tool: fs.read, args: { path: /workspace/drafts/report.md } }
+    expect: allow
+
+  - name: reviewer cannot edit a draft
+    agent: { role: reviewer, depth: 1, parent_role: planner }
+    call: { tool: fs.write, args: { path: /workspace/drafts/report.md, content: x } }
+    expect: deny
+
+  - name: planner reads the plan
+    agent: { role: planner, depth: 0 }
+    call: { tool: fs.read, args: { path: /workspace/plan/plan.md } }
+    expect: allow
+
+  - name: planner cannot search the web itself
+    agent: { role: planner, depth: 0 }
+    call: { tool: web.search, args: { query: "x" } }
+    expect: deny
+
+  - name: secrets are denied for everyone
+    agent: { role: writer, depth: 1, parent_role: planner }
+    call: { tool: fs.write, args: { path: /workspace/drafts/.env, content: x } }
+    expect: deny
+    expect_rule: no-secrets
+
+  - name: publishing asks a human
+    agent: { role: planner, depth: 0 }
+    call: { tool: site.publish, args: { page: report } }
+    expect: ask
+    expect_rule: publish-needs-human
+
+  - name: a writer cannot publish
+    agent: { role: writer, depth: 1, parent_role: planner }
+    call: { tool: site.publish, args: { page: report } }
+    expect: deny

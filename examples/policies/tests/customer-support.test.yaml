@@ -1,0 +1,58 @@
+policy: ../customer-support.yaml
+cases:
+  - name: customer lookup is allowed
+    agent: { role: support_agent }
+    call: { tool: crm.get_customer, args: { id: c-42 } }
+    expect: allow
+    expect_rule: lookup-and-tickets
+
+  - name: payment method is never shown
+    agent: { role: support_agent }
+    call: { tool: crm.get_payment_method, args: { id: c-42 } }
+    expect: deny
+    expect_rule: no-card-data
+
+  - name: bulk export is blocked
+    agent: { role: support_agent }
+    call: { tool: crm.export_customers, args: {} }
+    expect: deny
+    expect_rule: no-card-data
+
+  - name: reply to the ticket owner is allowed
+    agent: { role: support_agent }
+    call: { tool: email.send, args: { to: jo@example.com, to_matches_ticket: true, body: hi } }
+    expect: allow
+    expect_rule: email-the-customer-only
+
+  - name: email to somebody else is denied
+    agent: { role: support_agent }
+    call: { tool: email.send, args: { to: attacker@example.com, to_matches_ticket: false, body: hi } }
+    expect: deny
+
+  - name: email with no to address is denied
+    agent: { role: support_agent }
+    call: { tool: email.send, args: { body: hi } }
+    expect: deny
+
+  - name: small refund is automatic
+    agent: { role: support_agent }
+    call: { tool: refunds.issue, args: { amount: 25 } }
+    expect: allow
+    expect_rule: refund-small-auto
+
+  - name: medium refund asks a human
+    agent: { role: support_agent }
+    call: { tool: refunds.issue, args: { amount: 120 } }
+    expect: ask
+    expect_rule: refund-medium-ask
+
+  - name: large refund is denied
+    agent: { role: support_agent }
+    call: { tool: refunds.issue, args: { amount: 500 } }
+    expect: deny
+    expect_rule: refund-large-never
+
+  - name: negative refund is denied
+    agent: { role: support_agent }
+    call: { tool: refunds.issue, args: { amount: -50 } }
+    expect: deny

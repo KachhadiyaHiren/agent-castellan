@@ -1,0 +1,49 @@
+# Office hours only
+# -----------------
+# Scenario: an operations agent may change production-adjacent things (restart a service,
+# scale a deployment) only on working days between 09:00 and 17:00 UTC, when people are
+# around to notice a problem. Reading is always allowed. Outside office hours the agent
+# may still read, but any change is refused.
+#
+# Pattern shown: the `time.hour_utc` and `time.weekday` context values (weekday 0 is
+# Monday, 6 is Sunday). Time is always UTC; convert your local office hours first.
+#
+# Testing note: `castellan test` evaluates cases with the real clock, so the test file
+# for this policy only covers behaviour that does not depend on the time of day. The
+# README next to this file shows how to pin the clock from Python to test the hours
+# themselves.
+
+version: 1
+
+defaults:
+  effect: deny
+
+agents:
+  ops_agent: {}
+
+rules:
+  # Always safe, any hour: looking at state does not change it.
+  - id: read-any-time
+    agents: [ops_agent]
+    tools: ["ops.get_*", "ops.list_*", "ops.logs"]
+    effect: allow
+
+  # Changes are allowed only when the clock says so. Weekday 0-4 is Monday to Friday;
+  # hour 9 through 16 inclusive means 09:00:00 up to (not including) 17:00:00.
+  - id: change-in-office-hours
+    agents: [ops_agent]
+    tools: ["ops.restart_service", "ops.scale_deployment"]
+    when:
+      all:
+        - time.weekday: { lte: 4 }
+        - time.hour_utc: { gte: 9 }
+        - time.hour_utc: { lt: 17 }
+    effect: allow
+
+  # No rule is needed for "outside office hours": the allow above simply does not match
+  # and the default deny applies. Deleting is never allowed, at any hour.
+  - id: never-delete
+    agents: [ops_agent]
+    tools: ["ops.delete_*"]
+    effect: deny
+    reason: Deletion is never done by the ops agent

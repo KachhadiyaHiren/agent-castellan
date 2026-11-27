@@ -1,0 +1,46 @@
+policy: ../research-agent.yaml
+cases:
+  - name: search is allowed
+    agent: { role: researcher }
+    call: { tool: web.search, args: { query: "castellan policy engine" } }
+    expect: allow
+    expect_rule: search-the-web
+
+  - name: https pages can be fetched
+    agent: { role: researcher }
+    call: { tool: web.fetch, args: { url: "https://example.com/post" } }
+    expect: allow
+    expect_rule: fetch-https-only
+
+  - name: plain http is refused by the default
+    agent: { role: researcher }
+    call: { tool: web.fetch, args: { url: "http://example.com/post" } }
+    expect: deny
+
+  - name: cloud metadata endpoint is blocked
+    agent: { role: researcher }
+    call: { tool: web.fetch, args: { url: "https://169.254.169.254/latest/meta-data/" } }
+    expect: deny
+    expect_rule: no-internal-network
+
+  - name: localhost is blocked even over https
+    agent: { role: researcher }
+    call: { tool: web.fetch, args: { url: "https://localhost:8443/admin" } }
+    expect: deny
+    expect_rule: no-internal-network
+
+  - name: file urls are blocked
+    agent: { role: researcher }
+    call: { tool: web.fetch, args: { url: "file:///etc/passwd" } }
+    expect: deny
+    expect_rule: no-internal-network
+
+  - name: reading local files is not a research tool
+    agent: { role: researcher }
+    call: { tool: fs.read, args: { path: /workspace/notes.md } }
+    expect: deny
+
+  - name: writing anything is refused
+    agent: { role: researcher }
+    call: { tool: fs.write, args: { path: /workspace/notes.md, content: x } }
+    expect: deny

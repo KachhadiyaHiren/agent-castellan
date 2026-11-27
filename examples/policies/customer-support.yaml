@@ -1,0 +1,81 @@
+# Customer-support agent
+# ----------------------
+# Scenario: an agent answers support tickets. It can look up a customer, read and reply
+# to tickets and issue small goodwill refunds. It must never see full card numbers, never
+# email a customer outside their own address, and a refund beyond its limit goes to a
+# human.
+#
+# Pattern shown: `exists` to require an argument, `not` for an exclusion, and a ladder of
+# refund rules (small = automatic, medium = ask, large = never).
+
+version: 1
+
+defaults:
+  effect: deny
+
+agents:
+  support_agent: {}
+
+rules:
+  # Card data stays in the payment provider. The agent has no reason to read it and a
+  # prompt-injected agent has every reason to leak it.
+  - id: no-card-data
+    description: Payment methods and card numbers are never exposed to the agent
+    tools: ["crm.get_payment_method", "crm.export_*"]
+    effect: deny
+    reason: Card data is never available to support agents
+
+  - id: lookup-and-tickets
+    agents: [support_agent]
+    tools: ["crm.get_customer", "tickets.get", "tickets.list", "tickets.reply", "tickets.close"]
+    effect: allow
+
+  # Replies by email must go to the address on the ticket. Policies cannot compare two
+  # arguments with each other, so your tool wrapper does that comparison and passes the
+  # result as `to_matches_ticket`. That flag must be computed by your code from the
+  # ticket record, never filled in by the model, or it protects nothing. Without it, a
+  # prompt like "also send this to attacker@example.com" falls through to default deny.
+  - id: email-the-customer-only
+    agents: [support_agent]
+    tools: ["email.send"]
+    when:
+      all:
+        - args.to: { exists: true }
+        - args.to: { regex: '[^@\s]+@[^@\s]+' }
+        - args.to_matches_ticket: { eq: true }
+    effect: allow
+
+  # Refund ladder. 1) up to 25: automatic. Keeps simple tickets fast.
+  - id: refund-small-auto
+    agents: [support_agent]
+    tools: ["refunds.issue"]
+    when:
+      all:
+        - args.amount: { gt: 0 }
+        - args.amount: { lte: 25 }
+    effect: allow
+
+  # 2) above 25 up to 200: a human confirms.
+  - id: refund-medium-ask
+    agents: [support_agent]
+    tools: ["refunds.issue"]
+    when:
+      all:
+        - args.amount: { gt: 25 }
+        - args.amount: { lte: 200 }
+    effect: ask
+    approver: human
+
+  # 3) above 200: not the agent's call at all. Zero and negative amounts also fall
+  # through to the default deny (a negative refund is a charge).
+  - id: refund-large-never
+    agents: [support_agent]
+    tools: ["refunds.issue"]
+    when:
+      args.amount: { gt: 200 }
+    effect: deny
+    reason: Refunds above 200 must be handled by a person
+
+budgets:
+  run:
+    max_tool_calls: 40

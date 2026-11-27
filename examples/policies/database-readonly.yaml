@@ -1,0 +1,57 @@
+# Database agent: SELECT only
+# ---------------------------
+# Scenario: an analyst agent answers questions from a production reporting database. It
+# may run SELECT queries and nothing else: no writes, no schema changes, no stacked
+# statements ("SELECT 1; DROP TABLE users").
+#
+# Pattern shown: `regex` on a query string. `regex` uses Python's `re.fullmatch`, so the
+# whole query must match the pattern, not just the beginning.
+#
+# Be honest about the limit: a regex is a coarse filter, not a SQL parser. This policy is
+# defence in depth. The real protection is a database account that only has SELECT
+# privileges; use both.
+
+version: 1
+
+defaults:
+  effect: deny
+
+agents:
+  analyst: {}
+
+rules:
+  # Deny first: any write or DDL keyword anywhere in the text, or a semicolon (which
+  # would allow a second statement), or INTO (SELECT ... INTO OUTFILE / new table).
+  # (?is) makes the match case-insensitive and lets "." cross newlines. Trade-off: a
+  # harmless string literal such as WHERE note = 'update' is refused too. Failing closed
+  # is the right side to err on for a write guard.
+  - id: no-writes-or-stacking
+    agents: [analyst]
+    tools: ["db.query"]
+    when:
+      args.sql:
+        regex: '(?is).*(\b(insert|update|delete|drop|alter|truncate|create|grant|revoke|merge|copy|call|into)\b|;).*'
+    effect: deny
+    reason: Only a single read-only SELECT statement is allowed
+
+  # A query must start with SELECT (or WITH for a CTE) and be reasonably short. Combined
+  # with the rule above, this means "one plain SELECT".
+  - id: select-only
+    agents: [analyst]
+    tools: ["db.query"]
+    when:
+      all:
+        - args.sql: { regex: '(?is)\s*(select|with)\b.*' }
+        - args.sql: { len_lte: 4000 }
+    effect: allow
+
+  # Looking at the schema is how the agent learns what to query.
+  - id: describe-schema
+    agents: [analyst]
+    tools: ["db.list_tables", "db.describe_table"]
+    effect: allow
+
+budgets:
+  run:
+    # Cheap insurance against accidental full-table-scan loops.
+    max_tool_calls: 60
