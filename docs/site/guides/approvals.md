@@ -155,7 +155,7 @@ opens a fresh request; a denial does not block the agent permanently. If you nee
 stop, add a `deny` rule.
 
 ```python
-guard.approve(approval_id, approver_id="alice", approve=False)   # -> ApprovalStatus.DENIED
+guard.approve(approval_id, approver_id="alice", approve=False)  # -> ApprovalStatus.DENIED
 ```
 
 ## Who can approve: the `approver` field
@@ -175,7 +175,7 @@ In every case, **an agent can never approve its own request**.
 
     ```python
     # approvals_role_demo.py
-    pending = guard.authorize(coder, write)          # rule write-needs-review, approver role:reviewer
+    pending = guard.authorize(coder, write)  # rule write-needs-review, approver role:reviewer
     guard.approve(pending.approval_id, approver_id="reviewer-7")
     ```
     ```text

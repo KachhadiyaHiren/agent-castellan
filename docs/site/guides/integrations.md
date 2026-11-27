@@ -199,12 +199,15 @@ a context set with `guard_context`, so one function can serve many agents.
 ```python
 guard = Guard.from_file("team.yaml", key=bytes.fromhex("11" * 32))
 
+
 @guarded(guard, tool="fs.read")
 def read_file(path: str) -> str:
     return f"<contents of {path}>"
 
+
 @guarded(guard, tool="fs.write")
 def write_file(path: str, content: str) -> None: ...
+
 
 planner = guard.start_run("planner")
 coder, _ = guard.delegate(planner, "coder", tools=["fs.*"])

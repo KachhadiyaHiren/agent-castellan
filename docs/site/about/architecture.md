@@ -153,7 +153,7 @@ guard = Guard(
     grants=ChainVerifier(bytes.fromhex("11" * 32), clock),
     approvals=MemoryApprovalStore(clock),
     budgets=MemoryBudgetTracker(policy.budgets),
-    audit=PrintSink(),                 # your own AuditSink
+    audit=PrintSink(),  # your own AuditSink
     clock=clock,
 )
 who = guard.start_run("researcher")
