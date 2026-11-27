@@ -1,0 +1,65 @@
+# A small team policy used by the deep-dive guides.
+version: 1
+
+defaults:
+  effect: deny
+
+agents:
+  planner:
+    can_delegate_to: [researcher, coder]
+    max_delegation_depth: 2
+  researcher:
+    can_delegate_to: [researcher]
+    max_delegation_depth: 3
+  coder: {}
+  reviewer: {}
+
+rules:
+  - id: no-secrets
+    description: Never touch secret files, whoever asks
+    tools: ["*"]
+    when:
+      any:
+        - args.path: { glob: "**/.env*" }
+        - args.path: { glob: "**/*.pem" }
+    effect: deny
+    reason: Secret files are off limits
+
+  - id: read-workspace
+    agents: [researcher, coder, reviewer]
+    tools: ["fs.read", "fs.list"]
+    when:
+      args.path: { glob: "/workspace/**" }
+    effect: allow
+
+  - id: search-web
+    agents: [researcher]
+    tools: ["web.search"]
+    effect: allow
+
+  - id: write-needs-review
+    agents: [coder]
+    tools: ["fs.write"]
+    when:
+      args.path: { glob: "/workspace/**" }
+    effect: ask
+    approver: role:reviewer
+
+  - id: deploy-needs-human
+    agents: [coder]
+    tools: ["ops.deploy"]
+    effect: ask
+    approver: human
+
+budgets:
+  run:
+    max_tool_calls: 6
+    max_cost_units: 10
+  per_role:
+    researcher: { max_tool_calls: 3 }
+
+approvals:
+  ttl_seconds: 600
+
+audit:
+  path: ./castellan-audit.jsonl

@@ -1,0 +1,26 @@
+# Policy for an MCP client acting as the "assistant" role.
+version: 1
+defaults:
+  effect: deny
+agents:
+  assistant: {}
+rules:
+  - id: read-docs
+    agents: [assistant]
+    tools: ["mcp:files/read_file", "mcp:files/list_dir"]
+    when:
+      args.path: { glob: "/srv/docs/**" }
+    effect: allow
+  - id: no-secrets
+    tools: ["mcp:files/*"]
+    when:
+      args.path: { glob: "**/.env*" }
+    effect: deny
+    reason: Secret files are off limits
+  - id: writes-need-approval
+    agents: [assistant]
+    tools: ["mcp:files/write_file"]
+    effect: ask
+    approver: human
+audit:
+  path: ./mcp-audit.jsonl
