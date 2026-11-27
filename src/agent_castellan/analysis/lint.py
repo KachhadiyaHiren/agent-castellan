@@ -1,4 +1,4 @@
-"""Policy lint checks L001-L007 (WS4)."""
+"""Policy lint checks L001-L008 (WS4)."""
 
 from __future__ import annotations
 
@@ -15,14 +15,14 @@ class Finding:
     """One lint finding.
 
     Attributes:
-        check_id: `L001` to `L007`.
+        check_id: `L001` to `L008`.
         severity: `error` (makes `castellan lint` exit 1) or `warning`.
         message: What is wrong.
         rule_id: The rule concerned, if any.
-        line: Line of that rule in the policy file, if known.
+        line: Line of that rule or role in the policy file, if known.
     """
 
-    check_id: str  # L001 .. L007
+    check_id: str  # L001 .. L008
     severity: str  # error | warning
     message: str
     rule_id: str | None = None
@@ -223,6 +223,29 @@ def _check_unreachable(policy: Policy, delegations: Mapping[str, Sequence[str]])
     ]
 
 
+def _check_unused_roles(policy: Policy) -> list[Finding]:
+    used: set[str] = set()
+    for rule in policy.rules:
+        for agent in rule.agents:
+            if agent != "*" and not _has_wildcard(agent):
+                used.add(agent)
+        approver = _approver_role(rule)
+        if approver is not None:
+            used.add(approver)
+    for cfg in policy.agents.values():
+        used.update(cfg.can_delegate_to)
+    return [
+        Finding(
+            "L008",
+            "warning",
+            f"role '{role}' is defined in 'agents' but never used",
+            line=cfg.line,
+        )
+        for role, cfg in policy.agents.items()
+        if role not in used
+    ]
+
+
 def lint_policy(policy: Policy) -> list[Finding]:
     """Run every lint check against a policy.
 
@@ -245,4 +268,5 @@ def lint_policy(policy: Policy) -> list[Finding]:
         findings.append(
             Finding("L007", "warning", "defaults.effect is 'allow': unmatched calls are permitted")
         )
+    findings.extend(_check_unused_roles(policy))
     return findings

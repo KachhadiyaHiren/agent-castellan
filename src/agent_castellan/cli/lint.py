@@ -63,7 +63,7 @@ def lint(
 
 
 _HELP = (
-    "Find shadowed, duplicate, over-broad and unreachable rules (checks L001-L007).\n\n"
+    "Find shadowed, duplicate, over-broad and unreachable rules (checks L001-L008).\n\n"
     "Exit 1 if any error-severity finding exists. --format github emits workflow annotations."
 )
 

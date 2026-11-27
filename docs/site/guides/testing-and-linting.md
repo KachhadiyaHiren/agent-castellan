@@ -189,6 +189,27 @@ team-broken.yaml: warning L006 role 'reviewer' is not reachable from any can_del
 
 *Fix:* set `defaults.effect: deny` and add allow rules for what you need. Keep `allow` only for a policy whose job is to forbid a short list of things.
 
+### L008: unused role {#l008-unused-role}
+
+*Severity: warning.* A role is declared under `agents`, but no rule (`agents`), `ask` approver (`role:<name>`), or `can_delegate_to` list references it. Unused roles are often leftovers or typos.
+
+```yaml
+agents:
+  coder: {}
+  typo_role: {}
+rules:
+  - id: allow-read
+    agents: [coder]
+    tools: [fs.read]
+    effect: allow
+```
+
+```text
+policy.yaml:3: warning L008 role 'typo_role' is defined in 'agents' but never used
+```
+
+*Fix:* remove the unused role from `agents`, or reference it in a rule, an approver (`role:<name>`), or a `can_delegate_to` list.
+
 ## Run both in CI
 
 Put the policy and its tests in the repository and run the commands on every pull request. `--format github` turns findings into inline annotations on the changed lines.

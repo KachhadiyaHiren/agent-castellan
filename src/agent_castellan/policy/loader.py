@@ -64,6 +64,23 @@ def load_policy_text(text: str, *, source: str = "<string>") -> Policy:
         raise PolicyError("policy document must be a mapping", file=source, line=1)
 
     data = _plain(root)
+    agents = data.get("agents")
+    agent_nodes = root.get("agents")
+    if isinstance(agents, dict) and isinstance(agent_nodes, CommentedMap):
+        for role, raw_cfg in list(agents.items()):
+            cfg_dict = {} if raw_cfg is None else raw_cfg
+            if raw_cfg is None:
+                agents[role] = cfg_dict
+            if isinstance(cfg_dict, dict):
+                if "line" in cfg_dict:
+                    cfg_node = agent_nodes.get(role)
+                    err_line = (
+                        cfg_node.lc.key("line")[0] + 1
+                        if isinstance(cfg_node, CommentedMap)
+                        else agent_nodes.lc.key(role)[0] + 1
+                    )
+                    raise PolicyError("unknown key 'line'", file=source, line=err_line)
+                cfg_dict["line"] = agent_nodes.lc.key(role)[0] + 1
     rules = data.get("rules")
     rule_nodes = root.get("rules")
     if isinstance(rules, list) and isinstance(rule_nodes, CommentedSeq):
