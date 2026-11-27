@@ -47,10 +47,10 @@ cannot be widened even by code that holds it.
 
 ## Quickstart
 
-Install (Python 3.11+). Until 0.1.0 is on PyPI, install from the repository:
+Install (Python 3.11+):
 
 ```bash
-pip install "git+https://github.com/KachhadiyaHiren/agent-castellan.git"   # or: pip install agent-castellan
+pip install agent-castellan            # add [mcp] or [langgraph] for those integrations
 ```
 
 Write a policy, `policy.yaml`:
