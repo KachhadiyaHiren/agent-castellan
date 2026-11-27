@@ -1,0 +1,39 @@
+version: 1
+
+defaults:
+  effect: deny            # anything no rule mentions is refused
+
+agents:
+  planner:
+    can_delegate_to: [coder]
+  coder: {}
+
+rules:
+  - id: no-secrets
+    description: Secret files are off limits to everyone
+    tools: ["*"]
+    when:
+      any:
+        - args.path: { glob: "**/.env*" }
+        - args.path: { glob: "**/*.pem" }
+    effect: deny
+    reason: Secret files are off limits
+
+  - id: read-workspace
+    agents: [planner, coder]
+    tools: ["fs.read", "fs.list"]
+    when:
+      args.path: { glob: "/workspace/**" }
+    effect: allow
+
+  - id: write-needs-approval
+    agents: [coder]
+    tools: ["fs.write"]
+    when:
+      args.path: { glob: "/workspace/**" }
+    effect: ask
+    approver: human
+    reason: Writes need a human OK
+
+audit:
+  path: ./castellan-audit.jsonl

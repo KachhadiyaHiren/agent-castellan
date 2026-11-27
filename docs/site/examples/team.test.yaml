@@ -1,0 +1,39 @@
+policy: team.yaml
+cases:
+  - name: coder cannot read secrets
+    agent: { role: coder, depth: 1 }
+    call: { tool: fs.read, args: { path: /workspace/.env } }
+    expect: deny
+    expect_rule: no-secrets
+
+  - name: coder can read the workspace
+    agent: { role: coder, depth: 1 }
+    call: { tool: fs.read, args: { path: /workspace/app.py } }
+    expect: allow
+    expect_rule: read-workspace
+
+  - name: coder write needs approval
+    agent: { role: coder, depth: 1 }
+    call: { tool: fs.write, args: { path: /workspace/app.py, content: "x" } }
+    expect: ask
+    expect_rule: write-needs-review
+
+  - name: path tricks do not escape the workspace
+    agent: { role: coder, depth: 1 }
+    call: { tool: fs.read, args: { path: /workspace/../etc/passwd } }
+    expect: deny
+
+  - name: researcher may search when shallow
+    agent: { role: researcher, depth: 2 }
+    call: { tool: web.search, args: { query: castellan } }
+    expect: allow
+
+  - name: researcher may not search when too deep
+    agent: { role: researcher, depth: 3 }
+    call: { tool: web.search, args: { query: castellan } }
+    expect: deny
+
+  - name: reviewer cannot write
+    agent: { role: reviewer, depth: 1 }
+    call: { tool: fs.write, args: { path: /workspace/app.py, content: "x" } }
+    expect: deny

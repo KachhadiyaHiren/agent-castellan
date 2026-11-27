@@ -1,0 +1,39 @@
+version: 1
+
+defaults:
+  effect: allow            # L007
+
+agents:
+  planner:
+    can_delegate_to: [coder, ghost]    # L004: 'ghost' is not defined
+  coder: {}
+  auditor: {}                          # L006: nobody delegates to it
+
+rules:
+  - id: no-shell
+    tools: ["shell.*"]
+    effect: deny
+
+  - id: allow-shell-ls
+    agents: [coder]
+    tools: ["shell.ls"]
+    effect: allow                      # L001: shadowed by no-shell
+
+  - id: read-anything
+    tools: ["*"]
+    effect: allow                      # L003: allows every tool
+
+  - id: read-anything
+    tools: ["fs.read"]
+    effect: allow                      # L002: duplicate id
+
+  - id: write-needs-audit
+    agents: [coder]
+    tools: ["fs.write"]
+    effect: ask
+    approver: role:auditor             # L005: auditor can never exist in a run
+
+  - id: web-for-intern
+    agents: [intern]                   # L004: 'intern' is not defined
+    tools: ["web.*"]
+    effect: allow

@@ -1,0 +1,6 @@
+version: 1
+
+rules:
+  - id: read-workspace
+    tools: ["fs.read"]
+    effect: allow
