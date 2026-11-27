@@ -75,7 +75,7 @@ Ask the policy about three calls, `demo.py`:
 ```python
 from agent_castellan import Guard, ToolCall
 
-guard = Guard.from_file("policy.yaml", key=b"k" * 32)   # use a real secret, see Security below
+guard = Guard.from_file("policy.yaml", key=b"k" * 32)  # use a real secret, see Security below
 agent = guard.start_run("coder", on_behalf_of="alice")
 
 for tool, args in [
@@ -125,18 +125,18 @@ guard = Guard.from_file("research-team.yaml", key=b"k" * 32)
 planner = guard.start_run("planner", on_behalf_of="alice")
 
 # The planner hands the researcher a narrow grant: one tool, ten minutes.
-researcher, grant = guard.delegate(
-    planner, "researcher", tools=["web.search"], ttl_seconds=600
-)
+researcher, grant = guard.delegate(planner, "researcher", tools=["web.search"], ttl_seconds=600)
+
 
 def attempt(who, tool, **args):
     d = guard.authorize(who, ToolCall(tool=tool, args=args))
     print(f"{who.role:10} {tool:10} -> {d.effect.value:5} ({d.source}: {d.reason})")
 
-attempt(researcher, "web.search", query="macaroons")           # inside the grant
-attempt(researcher, "web.fetch", url="https://example.com")    # policy allows, grant does not
 
-try:                                                           # a researcher cannot spawn helpers
+attempt(researcher, "web.search", query="macaroons")  # inside the grant
+attempt(researcher, "web.fetch", url="https://example.com")  # policy allows, grant does not
+
+try:  # a researcher cannot spawn helpers
     guard.delegate(researcher, "writer", tools=["fs.write"])
 except PermissionDenied as exc:
     print("delegate    ->", exc.decision.reason)
@@ -177,11 +177,15 @@ from agent_castellan.integrations.decorator import guard_context, guarded
 
 guard = Guard.from_file("policy.yaml", key=b"k" * 32)
 
+
 @guarded(guard, tool="fs.read")
 def read_file(path: str) -> str: ...
 
+
 with guard_context(guard.start_run("coder")):
-    read_file(path="/workspace/app.py")      # raises PermissionDenied or ApprovalRequired if not allowed
+    read_file(
+        path="/workspace/app.py"
+    )  # raises PermissionDenied or ApprovalRequired if not allowed
 ```
 
 ## How this compares
