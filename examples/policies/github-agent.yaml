@@ -1,0 +1,72 @@
+# GitHub agent: no force-push, no repository deletion
+# ----------------------------------------------------
+# Scenario: an agent triages issues, opens pull requests and pushes branches. It may do
+# the everyday work, but some GitHub actions cannot be undone: deleting a repository,
+# force-pushing over history, or touching the default branch. Those are blocked for
+# everyone, and merging needs a human.
+#
+# Pattern shown: a "never" list of destructive tools, an argument check (`force`) that
+# applies to an otherwise-allowed tool, and `ask` for the one irreversible-but-normal
+# action (merging).
+
+version: 1
+
+defaults:
+  effect: deny
+
+agents:
+  github_agent: {}
+
+rules:
+  # Repository deletion and transfer cannot be undone. No `agents` key means the rule
+  # applies to every role, so a role added later is covered automatically.
+  - id: no-repo-destruction
+    description: Never delete, archive or transfer a repository
+    tools: ["github.delete_repo", "github.archive_repo", "github.transfer_repo"]
+    effect: deny
+    reason: Repository deletion, archiving and transfer are never done by an agent
+
+  # Force-pushing rewrites shared history. push_branch is allowed below, so we deny the
+  # dangerous variant here and rely on deny-overrides to beat that allow.
+  - id: no-force-push
+    agents: [github_agent]
+    tools: ["github.push_branch"]
+    when:
+      args.force: { eq: true }
+    effect: deny
+    reason: Force-push is not allowed
+
+  # The default branch is protected by policy as well as by GitHub settings, so a
+  # misconfigured repository still cannot be pushed to directly.
+  - id: no-push-to-default-branch
+    agents: [github_agent]
+    tools: ["github.push_branch"]
+    when:
+      args.branch: { in: [main, master, trunk, develop] }
+    effect: deny
+    reason: Push to a feature branch and open a pull request instead
+
+  # Day-to-day read operations.
+  - id: read-github
+    agents: [github_agent]
+    tools: ["github.get_*", "github.list_*", "github.search_*"]
+    effect: allow
+
+  # Creating issues, comments, branches and pull requests is how an agent contributes.
+  # All of it is reviewable and reversible.
+  - id: contribute
+    agents: [github_agent]
+    tools:
+      - github.create_issue
+      - github.comment
+      - github.create_branch
+      - github.push_branch
+      - github.create_pull_request
+    effect: allow
+
+  # Merging is the step that puts the agent's work into the product. A person decides.
+  - id: merge-needs-human
+    agents: [github_agent]
+    tools: ["github.merge_pull_request"]
+    effect: ask
+    approver: human

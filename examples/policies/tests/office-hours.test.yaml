@@ -1,0 +1,25 @@
+# These cases do not depend on the current time. See examples/policies/README.md for how
+# to test the office-hours window itself with a pinned clock.
+policy: ../office-hours.yaml
+cases:
+  - name: reading is allowed at any hour
+    agent: { role: ops_agent }
+    call: { tool: ops.get_service, args: { name: api } }
+    expect: allow
+    expect_rule: read-any-time
+
+  - name: logs are readable at any hour
+    agent: { role: ops_agent }
+    call: { tool: ops.logs, args: { name: api } }
+    expect: allow
+
+  - name: deleting is denied at any hour
+    agent: { role: ops_agent }
+    call: { tool: ops.delete_namespace, args: { name: staging } }
+    expect: deny
+    expect_rule: never-delete
+
+  - name: unknown ops tools are denied
+    agent: { role: ops_agent }
+    call: { tool: ops.drop_database, args: {} }
+    expect: deny

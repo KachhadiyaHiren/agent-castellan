@@ -1,0 +1,28 @@
+policy: ../two-person-rule.yaml
+cases:
+  - name: status is readable by both roles
+    agent: { role: lead }
+    call: { tool: release.status, args: {} }
+    expect: allow
+
+  - name: operator promoting to production needs a lead
+    agent: { role: operator }
+    call: { tool: release.promote, args: { version: 1.4.2, env: prod } }
+    expect: ask
+    expect_rule: production-release-needs-lead
+
+  - name: rotating secrets also needs a lead
+    agent: { role: operator }
+    call: { tool: secrets.rotate, args: { name: db-password } }
+    expect: ask
+
+  - name: a lead cannot request a promotion
+    agent: { role: lead }
+    call: { tool: release.promote, args: { version: 1.4.2, env: prod } }
+    expect: deny
+    expect_rule: lead-cannot-promote
+
+  - name: operator has no other powers
+    agent: { role: operator }
+    call: { tool: release.rollback, args: {} }
+    expect: deny

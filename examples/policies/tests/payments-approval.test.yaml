@@ -1,0 +1,39 @@
+policy: ../payments-approval.yaml
+cases:
+  - name: invoices can be listed
+    agent: { role: finance_agent }
+    call: { tool: invoices.list, args: {} }
+    expect: allow
+
+  - name: small USD payment asks a human
+    agent: { role: finance_agent }
+    call: { tool: payments.send, args: { amount: 80, currency: USD, to: acme } }
+    expect: ask
+    expect_rule: small-payments-need-approval
+
+  - name: payment at exactly the ceiling still asks
+    agent: { role: finance_agent }
+    call: { tool: payments.send, args: { amount: 1000, currency: EUR, to: acme } }
+    expect: ask
+
+  - name: payment above the ceiling is denied
+    agent: { role: finance_agent }
+    call: { tool: payments.send, args: { amount: 1000.01, currency: USD, to: acme } }
+    expect: deny
+    expect_rule: payment-ceiling
+
+  - name: unsupported currency is denied
+    agent: { role: finance_agent }
+    call: { tool: payments.send, args: { amount: 10, currency: BTC, to: acme } }
+    expect: deny
+    expect_rule: approved-currencies
+
+  - name: payment without an amount is not approved
+    agent: { role: finance_agent }
+    call: { tool: payments.send, args: { currency: USD, to: acme } }
+    expect: deny
+
+  - name: refunds are not a granted tool
+    agent: { role: finance_agent }
+    call: { tool: payments.refund, args: { amount: 10, currency: USD } }
+    expect: deny
