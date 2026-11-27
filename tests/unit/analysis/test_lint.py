@@ -9,6 +9,7 @@ from agent_castellan.analysis.lint import (
     tools_covered,
 )
 from agent_castellan.models import Effect
+from agent_castellan.policy.loader import load_policy_text
 from agent_castellan.policy.schema import AgentConfig, Defaults, Policy, Rule
 
 
@@ -157,3 +158,33 @@ def test_glob_question_mark_and_helpers() -> None:
     assert not agents_covered(["a"], ["*"])
     assert not agents_covered(["a"], [])
     assert not agents_covered(["a"], ["b"])
+
+
+def test_l008_unused_role_flagged_with_line() -> None:
+    p = load_policy_text(
+        "version: 1\n"
+        "agents:\n"
+        "  coder: {}\n"
+        "  stale: {}\n"
+        "rules:\n"
+        "  - id: read\n"
+        "    agents: [coder]\n"
+        "    tools: [fs.read]\n"
+        "    effect: allow\n"
+    )
+    (f,) = ids(lint_policy(p), "L008")
+    assert (f.severity, f.line, f.rule_id) == ("warning", 4, None)
+    assert "stale" in f.message
+
+
+def test_l008_quiet_when_role_used_by_rule_approver_or_delegation() -> None:
+    p = pol(
+        rule("allow-coder", tools=("fs.read",), agents=("coder",)),
+        rule("ask-review", Effect.ASK, tools=("fs.write",), approver="role:reviewer"),
+        agents={
+            "coder": AgentConfig(can_delegate_to=("helper",)),
+            "reviewer": AgentConfig(),
+            "helper": AgentConfig(),
+        },
+    )
+    assert ids(lint_policy(p), "L008") == []

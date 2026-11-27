@@ -25,6 +25,7 @@ class AgentConfig(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     can_delegate_to: tuple[str, ...] = ()
     max_delegation_depth: int | None = Field(default=None, ge=0)
+    line: int | None = None
 
 
 class Rule(BaseModel):

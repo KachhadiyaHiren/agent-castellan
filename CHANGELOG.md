@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Policy linter:** added check `L008` (warning) for roles defined under `agents` that are never referenced by any rule, approver or `can_delegate_to`.
+
 ## [0.1.0] - 2026-11-27
 
 First public release.
