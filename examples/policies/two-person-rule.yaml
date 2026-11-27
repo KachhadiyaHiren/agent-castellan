@@ -1,0 +1,53 @@
+# Two-person rule
+# ---------------
+# Scenario: certain actions (releasing to production, rotating credentials) must be
+# approved by a second party before they run. An agent in the `operator` role asks; an
+# agent or human in the `lead` role approves. The requester can never approve its own
+# request, which Castellan enforces regardless of this file.
+#
+# Pattern shown: `approver: role:lead`. Any active agent with role `lead` in the same
+# run may approve. Approvals are bound to the exact call: a lead who approves
+# "release v1.4.2" has not approved "release v1.4.3". Each approval is used once.
+#
+# Flow: the operator's call returns `ask` with an approval id; a principal whose role is
+# `lead` approves that id; the operator retries the identical call and it is allowed once.
+
+version: 1
+
+defaults:
+  effect: deny
+
+agents:
+  # The role that does the work and requests the risky actions.
+  operator:
+    can_delegate_to: [lead]
+  # The role that approves them. The delegation above lets a run actually contain a lead
+  # (otherwise lint warns that the approver role can never exist). Leads cannot act on
+  # their own: they have no allow rules.
+  lead: {}
+
+rules:
+  - id: read-status
+    agents: [operator, lead]
+    tools: ["release.status", "release.list"]
+    effect: allow
+
+  # The two-person rule itself. Approval expires after the TTL below.
+  - id: production-release-needs-lead
+    agents: [operator]
+    tools: ["release.promote", "secrets.rotate"]
+    effect: ask
+    approver: role:lead
+    reason: A lead must approve production changes
+
+  # A lead can approve but cannot also request: otherwise one person could hold both
+  # keys. Making this explicit documents the intent.
+  - id: lead-cannot-promote
+    agents: [lead]
+    tools: ["release.promote", "secrets.rotate"]
+    effect: deny
+    reason: Leads approve production changes; they do not request them
+
+approvals:
+  # Keep the window short: the lead should be looking at the request right now.
+  ttl_seconds: 300

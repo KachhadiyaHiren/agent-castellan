@@ -1,0 +1,44 @@
+policy: ../staging-vs-prod.yaml
+cases:
+  - name: staging deploy is automatic
+    agent: { role: deployer }
+    call: { tool: deploy.apply, args: { env: staging, version: 2.0.0 } }
+    expect: allow
+    expect_rule: staging-free
+
+  - name: staging teardown is allowed
+    agent: { role: deployer }
+    call: { tool: deploy.destroy, args: { env: staging } }
+    expect: allow
+
+  - name: production deploy asks a human
+    agent: { role: deployer }
+    call: { tool: deploy.apply, args: { env: prod, version: 2.0.0 } }
+    expect: ask
+    expect_rule: prod-needs-human
+
+  - name: production rollback asks a human
+    agent: { role: deployer }
+    call: { tool: deploy.rollback, args: { env: prod } }
+    expect: ask
+
+  - name: production destroy is denied
+    agent: { role: deployer }
+    call: { tool: deploy.destroy, args: { env: prod } }
+    expect: deny
+    expect_rule: prod-no-destroy
+
+  - name: unknown environment is denied
+    agent: { role: deployer }
+    call: { tool: deploy.apply, args: { env: qa, version: 2.0.0 } }
+    expect: deny
+
+  - name: missing environment is denied
+    agent: { role: deployer }
+    call: { tool: deploy.apply, args: { version: 2.0.0 } }
+    expect: deny
+
+  - name: status works in production
+    agent: { role: deployer }
+    call: { tool: deploy.status, args: { env: prod } }
+    expect: allow

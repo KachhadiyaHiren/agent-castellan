@@ -1,0 +1,99 @@
+# Multi-agent research team
+# -------------------------
+# Scenario: a planner agent receives a task from a user and hands pieces of it to
+# specialist sub-agents: a researcher (web, read-only), a writer (drafts files) and a
+# reviewer (read-only, checks drafts). The planner itself can only coordinate. The
+# point of this policy is delegation: who may hand work to whom, how deep the chain may
+# go, and how a sub-agent's power stays smaller than its parent's.
+#
+# Pattern shown: `can_delegate_to`, `max_delegation_depth`, `agent.depth` and
+# `agent.parent_role` conditions, per-role budgets and a run budget shared by the tree.
+#
+# Python side (see the project README for a complete runnable version):
+#   planner = guard.start_run("planner", on_behalf_of="user-1")
+#   researcher, grant = guard.delegate(planner, "researcher", tools=["web.search"])
+# The grant can only narrow what this policy already allows; it can never widen it.
+
+version: 1
+
+defaults:
+  effect: deny
+
+agents:
+  planner:
+    # The only role that may start sub-agents, and only these three kinds.
+    can_delegate_to: [researcher, writer, reviewer]
+    # Planner is depth 0, specialists are depth 1. Allowing delegation only down to depth
+    # 1 stops a researcher from spawning its own helpers.
+    max_delegation_depth: 1
+  researcher: {}
+  writer: {}
+  reviewer: {}
+
+rules:
+  # Secrets are off limits to everybody, including the planner. Deny overrides all.
+  - id: no-secrets
+    tools: ["fs.*"]
+    when:
+      any:
+        - args.path: { glob: "**/.env*" }
+        - args.path: { glob: "**/*.pem" }
+    effect: deny
+    reason: Secret files are off limits
+
+  # The planner only reads the shared plan files; it does the work through others.
+  - id: planner-reads-plan
+    agents: [planner]
+    tools: ["fs.read", "fs.list"]
+    when:
+      args.path: { glob: "/workspace/plan/**" }
+    effect: allow
+
+  # Researchers look things up on the web. `agent.depth` and `agent.parent_role` mean a
+  # researcher only works when it was started by the planner, directly below it.
+  - id: researcher-web
+    agents: [researcher]
+    tools: ["web.search", "web.fetch"]
+    when:
+      all:
+        - agent.depth: { lte: 1 }
+        - agent.parent_role: { eq: planner }
+    effect: allow
+
+  # The writer saves drafts in one folder and nowhere else.
+  - id: writer-drafts
+    agents: [writer]
+    tools: ["fs.read", "fs.write"]
+    when:
+      args.path: { glob: "/workspace/drafts/**" }
+    effect: allow
+
+  # The reviewer can read drafts but not change them. Reviewing your own writes would
+  # defeat the point.
+  - id: reviewer-reads-drafts
+    agents: [reviewer]
+    tools: ["fs.read", "fs.list"]
+    when:
+      args.path: { glob: "/workspace/drafts/**" }
+    effect: allow
+
+  # Publishing is the one outward-facing step. It needs a human, and only the planner
+  # can ask for it.
+  - id: publish-needs-human
+    agents: [planner]
+    tools: ["site.publish"]
+    effect: ask
+    approver: human
+
+budgets:
+  run:
+    # One ceiling for the whole tree: no matter how many sub-agents run, together they
+    # cannot make more than 150 calls.
+    max_tool_calls: 150
+  per_role:
+    # Web calls are the expensive and risky ones, so the researcher gets a tighter cap.
+    researcher: { max_tool_calls: 60 }
+    writer: { max_tool_calls: 40 }
+
+approvals:
+  ttl_seconds: 600

@@ -1,0 +1,55 @@
+# Staging vs production
+# ---------------------
+# Scenario: a deploy agent works with the same tools in two environments. In staging it
+# can do what it likes within reason; in production every deploy needs a human, and
+# destructive tools are refused entirely. The environment is an argument (`args.env`) of
+# each call.
+#
+# Pattern shown: one tool, different effects depending on an argument value, and a
+# fail-safe: a call with an unknown or missing `env` matches nothing and is denied.
+#
+# Important: `args.env` is chosen by the caller. Your tool wrapper should set it from the
+# real target (for example from the cluster the call will hit), not from model output.
+
+version: 1
+
+defaults:
+  effect: deny
+
+agents:
+  deployer: {}
+
+rules:
+  # Production is never destroyed by an agent. Listed first so the intent is obvious.
+  - id: prod-no-destroy
+    agents: [deployer]
+    tools: ["deploy.destroy", "deploy.wipe_data"]
+    when:
+      args.env: { eq: prod }
+    effect: deny
+    reason: Production resources are never destroyed by an agent
+
+  # Staging is the playground: deploys, rollbacks and teardown are fine.
+  - id: staging-free
+    agents: [deployer]
+    tools: ["deploy.apply", "deploy.rollback", "deploy.destroy"]
+    when:
+      args.env: { eq: staging }
+    effect: allow
+
+  # Production deploys and rollbacks go through a person.
+  - id: prod-needs-human
+    agents: [deployer]
+    tools: ["deploy.apply", "deploy.rollback"]
+    when:
+      args.env: { eq: prod }
+    effect: ask
+    approver: human
+
+  # Looking at state is fine in either environment.
+  - id: status-anywhere
+    agents: [deployer]
+    tools: ["deploy.status"]
+    when:
+      args.env: { in: [staging, prod] }
+    effect: allow

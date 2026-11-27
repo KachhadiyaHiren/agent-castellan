@@ -1,0 +1,55 @@
+policy: ../database-readonly.yaml
+cases:
+  - name: plain select is allowed
+    agent: { role: analyst }
+    call: { tool: db.query, args: { sql: "SELECT id, total FROM orders WHERE total > 100" } }
+    expect: allow
+    expect_rule: select-only
+
+  - name: lowercase and multi-line select is allowed
+    agent: { role: analyst }
+    call: { tool: db.query, args: { sql: "select count(*)\nfrom orders\ngroup by status" } }
+    expect: allow
+
+  - name: cte is allowed
+    agent: { role: analyst }
+    call: { tool: db.query, args: { sql: "WITH t AS (SELECT 1 AS x) SELECT x FROM t" } }
+    expect: allow
+
+  - name: delete is denied
+    agent: { role: analyst }
+    call: { tool: db.query, args: { sql: "DELETE FROM orders" } }
+    expect: deny
+
+  - name: drop is denied
+    agent: { role: analyst }
+    call: { tool: db.query, args: { sql: "DROP TABLE orders" } }
+    expect: deny
+
+  - name: stacked statement is denied
+    agent: { role: analyst }
+    call: { tool: db.query, args: { sql: "SELECT 1; DROP TABLE users" } }
+    expect: deny
+    expect_rule: no-writes-or-stacking
+
+  - name: select into is denied
+    agent: { role: analyst }
+    call: { tool: db.query, args: { sql: "SELECT * INTO backup FROM orders" } }
+    expect: deny
+    expect_rule: no-writes-or-stacking
+
+  - name: write hidden in lowercase is denied
+    agent: { role: analyst }
+    call: { tool: db.query, args: { sql: "select 1\nunion select 2; update users set admin = true" } }
+    expect: deny
+    expect_rule: no-writes-or-stacking
+
+  - name: schema inspection is allowed
+    agent: { role: analyst }
+    call: { tool: db.describe_table, args: { table: orders } }
+    expect: allow
+
+  - name: a query that is not a select is refused by the default
+    agent: { role: analyst }
+    call: { tool: db.query, args: { sql: "VACUUM" } }
+    expect: deny
