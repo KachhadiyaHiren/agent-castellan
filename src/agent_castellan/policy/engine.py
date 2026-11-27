@@ -43,7 +43,27 @@ class _CompiledRule:
 
 
 class PolicyEngine:
-    """Decides calls according to a loaded Policy (PLAN.md §2)."""
+    """Decides tool calls according to a loaded policy.
+
+    Implements the decision algorithm: deny overrides ask, ask overrides allow, and
+    `defaults.effect` applies when nothing matches. Use it directly when you only need
+    decisions (no grants, approvals, budgets or audit); use `Guard` for the full pipeline.
+
+    Args:
+        policy: A policy from `load_policy`.
+        clock: Time source for `time.*` conditions; defaults to the system clock in UTC.
+        run_tool_calls: Callback returning the number of calls made so far in a run, used
+            by `run.tool_calls` conditions. Without it that path is always 0.
+
+    Raises:
+        PolicyError: A rule cannot be compiled.
+
+    Example:
+        ```python
+        engine = PolicyEngine(load_policy("policy.yaml"))
+        decision = engine.decide(principal, ToolCall(tool="fs.read", args={"path": "/a"}))
+        ```
+    """
 
     def __init__(
         self,
@@ -64,7 +84,18 @@ class PolicyEngine:
         self._needs_run = "run.tool_calls" in paths
 
     def decide(self, principal: Principal, call: ToolCall) -> Decision:
-        """Return the policy decision for this call."""
+        """Return the policy decision for this call.
+
+        The call is normalized first (lower-cased tool name, resolved paths, canonical URLs).
+        A call that cannot be normalized is denied with reason `invalid_call`.
+
+        Args:
+            principal: The agent making the call.
+            call: The tool call to decide.
+
+        Returns:
+            A decision whose `trace` has one step per rule, in file order.
+        """
         try:
             call = normalize_call(call)
         except PolicyError as exc:
@@ -121,14 +152,34 @@ class PolicyEngine:
         )
 
     def approver_for(self, rule_id: str) -> str:
-        """Return the approver string configured on a rule."""
+        """Return the approver string configured on a rule.
+
+        Args:
+            rule_id: Id of an `ask` rule.
+
+        Returns:
+            `human`, `role:<role>` or `agent:<id>`.
+
+        Raises:
+            PolicyError: No rule has this id.
+        """
         rule = self._by_id.get(rule_id)
         if rule is None:
             raise PolicyError(f"unknown rule '{rule_id}'", file=self.policy.source)
         return rule.approver
 
     def can_delegate(self, parent_role: str, child_role: str, depth: int) -> bool:
-        """Say whether a role at this depth may delegate to a child role."""
+        """Say whether a role at this depth may delegate to a child role.
+
+        Args:
+            parent_role: Role that wants to delegate.
+            child_role: Role it wants to create.
+            depth: Depth of the parent; the child would sit at `depth + 1`.
+
+        Returns:
+            True if the parent's `can_delegate_to` lists the child and the child's depth is
+            within the parent's `max_delegation_depth`.
+        """
         config = self.policy.agents.get(parent_role)
         if config is None or child_role not in config.can_delegate_to:
             return False

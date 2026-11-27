@@ -28,7 +28,20 @@ class AgentConfig(BaseModel):
 
 
 class Rule(BaseModel):
-    """One allow, deny or ask rule."""
+    """One allow, deny or ask rule.
+
+    Attributes:
+        id: Unique name, shown in decisions, traces and audit entries.
+        description: Free-text note for humans.
+        agents: Roles the rule applies to; `("*",)` means all.
+        tools: Tool globs the rule applies to.
+        when: Optional condition tree; see the policy language reference.
+        effect: `allow`, `deny` or `ask`.
+        reason: Message returned in the decision.
+        approver: For `ask` rules: `human`, `role:<role>` or `agent:<id>`.
+        priority: Tie-breaker between matching rules of the same effect; higher wins.
+        line: Line in the source file, filled in by the loader.
+    """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
     id: str
@@ -103,7 +116,18 @@ class AuditConfig(BaseModel):
 
 
 class Policy(BaseModel):
-    """A loaded, validated policy."""
+    """A loaded, validated policy: the typed form of a policy YAML document.
+
+    Attributes:
+        version: Policy language version; always 1.
+        defaults: What happens when no rule matches.
+        agents: Role definitions, keyed by role name.
+        rules: Rules in file order.
+        budgets: Run and per-role limits.
+        approvals: Approval settings.
+        audit: Audit log settings.
+        source: File the policy was loaded from, if any.
+    """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
     version: Literal[1] = 1

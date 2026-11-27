@@ -10,7 +10,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class Effect(str, Enum):
-    """What a rule or decision says should happen to a tool call."""
+    """What a rule or decision says should happen to a tool call.
+
+    Attributes:
+        ALLOW: The call may run.
+        DENY: The call must not run.
+        ASK: The call may run only after an approver says yes.
+    """
 
     ALLOW = "allow"
     DENY = "deny"
@@ -18,7 +24,20 @@ class Effect(str, Enum):
 
 
 class Principal(BaseModel):
-    """An agent identity within one run."""
+    """An agent identity within one run.
+
+    A principal is immutable. Create the root one with `Guard.start_run` and child ones
+    with `Guard.delegate`; you rarely build one by hand.
+
+    Attributes:
+        agent_id: Unique id of this agent instance.
+        role: Role name, as used in `agents:` and in rule `agents:` lists.
+        run_id: Id shared by every agent in one delegation tree.
+        parent_id: `agent_id` of the agent that delegated to this one, if any.
+        parent_role: Role of that parent, if any.
+        depth: Distance from the root agent; the root has depth 0.
+        on_behalf_of: Id of the end user the whole run acts for, if any.
+    """
 
     model_config = ConfigDict(frozen=True)
     agent_id: str
@@ -31,7 +50,15 @@ class Principal(BaseModel):
 
 
 class ToolCall(BaseModel):
-    """The thing being authorized."""
+    """The thing being authorized: one tool invocation with its arguments.
+
+    Attributes:
+        tool: Namespaced tool name such as `fs.write` or `mcp:filesystem/read_file`.
+            Names are lower-cased and checked before any rule is evaluated.
+        args: JSON-serializable arguments the tool will receive.
+        resource: Optional extra attributes about the target; kept in the audit log.
+        cost_units: Cost of this call, counted against `max_cost_units` budgets.
+    """
 
     model_config = ConfigDict(frozen=True)
     tool: str
@@ -41,7 +68,13 @@ class ToolCall(BaseModel):
 
 
 class TraceStep(BaseModel):
-    """One rule considered during a decision, and why it did or did not match."""
+    """One rule considered during a decision, and why it did or did not match.
+
+    Attributes:
+        rule_id: Id of the rule that was considered.
+        matched: True if the rule's `agents`, `tools` and `when` all matched.
+        detail: Short reason, such as `tools: no match for 'fs.write'`.
+    """
 
     model_config = ConfigDict(frozen=True)
     rule_id: str
@@ -50,7 +83,17 @@ class TraceStep(BaseModel):
 
 
 class Decision(BaseModel):
-    """The outcome of authorizing a tool call."""
+    """The outcome of authorizing a tool call.
+
+    Attributes:
+        effect: `allow`, `deny` or `ask`.
+        reason: Human-readable explanation, taken from the rule's `reason` when it has one.
+        rule_id: Id of the winning rule, or `None` when a default, grant or budget decided.
+        source: Which part of the pipeline decided: `policy`, `default`, `grant`,
+            `budget`, `approval` or `invalid`.
+        trace: One step per rule considered, in file order.
+        approval_id: Id of the pending approval request when `effect` is `ask`.
+    """
 
     model_config = ConfigDict(frozen=True)
     effect: Effect
@@ -62,7 +105,23 @@ class Decision(BaseModel):
 
 
 class Grant(BaseModel):
-    """A signed delegation from a parent agent to a child agent."""
+    """A signed delegation from a parent agent to a child agent.
+
+    Grants form a chain from the root to the acting agent. Each grant can only narrow
+    the one before it.
+
+    Attributes:
+        grant_id: Unique id of this grant.
+        issuer_agent_id: Agent that issued the grant (the parent).
+        subject_agent_id: Agent that receives the grant (the child).
+        subject_role: Role of the child.
+        run_id: Run the grant belongs to; it is useless in any other run.
+        tools: Tool globs the child may use, always a subset of the parent's.
+        when: Extra conditions, in the same language as a rule's `when`.
+        expires_at: Moment after which the grant stops working.
+        max_calls: Maximum calls allowed under this grant, or `None` for no limit.
+        signature: Hex HMAC that chains this grant to the ones before it.
+    """
 
     model_config = ConfigDict(frozen=True)
     grant_id: str
@@ -78,7 +137,19 @@ class Grant(BaseModel):
 
 
 class ApprovalRequest(BaseModel):
-    """A pending request for a human or agent to approve one exact call."""
+    """A pending request for a human or agent to approve one exact call.
+
+    Attributes:
+        approval_id: Id to pass to `Guard.approve`.
+        principal: The agent that asked.
+        call: The call that needs approval.
+        call_hash: SHA-256 of the normalized tool name and arguments; an approval only
+            unlocks a call with this exact hash.
+        approver: Who may approve: `human`, `role:<role>` or `agent:<id>`.
+        rule_id: The `ask` rule that created the request.
+        created_at: When the request was created.
+        expires_at: When the request stops being usable.
+    """
 
     model_config = ConfigDict(frozen=True)
     approval_id: str
@@ -92,7 +163,11 @@ class ApprovalRequest(BaseModel):
 
 
 class ApprovalStatus(str, Enum):
-    """Lifecycle state of an approval request."""
+    """Lifecycle state of an approval request.
+
+    A request starts as `PENDING`, becomes `APPROVED`, `DENIED` or `EXPIRED`, and an
+    approved request becomes `CONSUMED` the one time it unlocks a call.
+    """
 
     PENDING = "pending"
     APPROVED = "approved"
@@ -102,7 +177,17 @@ class ApprovalStatus(str, Enum):
 
 
 class AuditEntry(BaseModel):
-    """One hash-chained record in the audit log."""
+    """One hash-chained record in the audit log.
+
+    Attributes:
+        seq: Position in the log, starting at 0.
+        at: When the decision was recorded (UTC).
+        principal: The agent that made the call.
+        call: The normalized call.
+        decision: What the guard decided.
+        prev_hash: `hash` of the previous entry; 64 zeros for the first entry.
+        hash: SHA-256 over `prev_hash` and this entry's canonical JSON.
+    """
 
     model_config = ConfigDict(frozen=True)
     seq: int

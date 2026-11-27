@@ -18,7 +18,18 @@ from .schema import Policy
 
 
 def load_policy(path: str | Path) -> Policy:
-    """Load and validate a policy file."""
+    """Load and validate a policy file.
+
+    Args:
+        path: Path of the YAML policy.
+
+    Returns:
+        The validated, immutable policy.
+
+    Raises:
+        PolicyError: The file cannot be read, is not valid YAML, or breaks the policy
+            schema. The message starts with `<file>:<line>` and names the rule.
+    """
     file = Path(path)
     try:
         text = file.read_text(encoding="utf-8")
@@ -28,7 +39,18 @@ def load_policy(path: str | Path) -> Policy:
 
 
 def load_policy_text(text: str, *, source: str = "<string>") -> Policy:
-    """Load and validate a policy from YAML text."""
+    """Load and validate a policy from YAML text.
+
+    Args:
+        text: The YAML document.
+        source: Name used in error messages in place of a file name.
+
+    Returns:
+        The validated, immutable policy.
+
+    Raises:
+        PolicyError: The text is not valid YAML or breaks the policy schema.
+    """
     yaml = YAML(typ="rt")
     yaml.allow_duplicate_keys = False
     try:

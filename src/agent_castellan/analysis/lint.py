@@ -12,7 +12,15 @@ from ..policy.schema import Policy, Rule
 
 @dataclass(frozen=True)
 class Finding:
-    """One lint finding."""
+    """One lint finding.
+
+    Attributes:
+        check_id: `L001` to `L007`.
+        severity: `error` (makes `castellan lint` exit 1) or `warning`.
+        message: What is wrong.
+        rule_id: The rule concerned, if any.
+        line: Line of that rule in the policy file, if known.
+    """
 
     check_id: str  # L001 .. L007
     severity: str  # error | warning
@@ -216,7 +224,14 @@ def _check_unreachable(policy: Policy, delegations: Mapping[str, Sequence[str]])
 
 
 def lint_policy(policy: Policy) -> list[Finding]:
-    """Run every lint check against a policy."""
+    """Run every lint check against a policy.
+
+    Args:
+        policy: A policy from `load_policy`.
+
+    Returns:
+        All findings, grouped by check id. An empty list means the policy is clean.
+    """
     delegations = {role: cfg.can_delegate_to for role, cfg in policy.agents.items()}
     findings = [
         *_check_shadowed(policy),

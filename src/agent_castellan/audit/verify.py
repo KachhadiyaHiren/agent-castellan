@@ -12,7 +12,14 @@ from ._chain import GENESIS_HASH, canonical, entry_hash
 
 @dataclass(frozen=True)
 class VerifyResult:
-    """Outcome of verifying a log: `bad_seq` and `reason` are set when `ok` is False."""
+    """Outcome of verifying a log.
+
+    Attributes:
+        ok: True if every entry is intact and in order.
+        entries: Number of entries read (before the first problem when `ok` is False).
+        bad_seq: Sequence number of the first bad entry; only when `ok` is False.
+        reason: `hash_mismatch`, `gap` or `reordered`; only when `ok` is False.
+    """
 
     ok: bool
     entries: int
@@ -29,7 +36,18 @@ def _parse(raw: bytes) -> dict[str, Any] | None:
 
 
 def verify_log(path: str | Path) -> VerifyResult:
-    """Verify the hash chain of an audit log file."""
+    """Verify the hash chain of an audit log file.
+
+    Args:
+        path: Path of the JSONL log.
+
+    Returns:
+        A result with `ok=True` and the entry count, or `ok=False` with the first bad
+        `seq` and a reason: `hash_mismatch`, `gap` or `reordered`.
+
+    Raises:
+        OSError: The file cannot be read.
+    """
     text = Path(path).read_bytes()
     lines = [ln for ln in text.split(b"\n") if ln.strip()]
     parsed = [_parse(ln) for ln in lines]

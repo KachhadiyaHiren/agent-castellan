@@ -22,7 +22,22 @@ _CONTEXT: ContextVar[tuple[Principal, tuple[Grant, ...]] | None] = ContextVar(
 
 @contextmanager
 def guard_context(principal: Principal, chain: Sequence[Grant] = ()) -> Iterator[None]:
-    """Set the acting principal and grant chain for guarded calls in this context."""
+    """Set the acting principal and grant chain for `@guarded` calls inside the block.
+
+    The context is stored in a `contextvars.ContextVar`, so it follows threads and asyncio
+    tasks correctly.
+
+    Args:
+        principal: The agent on whose behalf calls are made.
+        chain: Grants from the root to `principal`; leave empty for a root agent or for
+            agents created by the same guard's `delegate`.
+
+    Example:
+        ```python
+        with guard_context(principal):
+            read_file("/workspace/a.txt")
+        ```
+    """
     token = _CONTEXT.set((principal, tuple(chain)))
     try:
         yield
@@ -68,7 +83,31 @@ def _json_safe_args(bound: inspect.BoundArguments) -> dict[str, Any]:
 
 
 def guarded(guard: Guard, *, tool: str) -> Callable[[F], F]:
-    """Wrap a function so every call is authorized before it runs."""
+    """Wrap a function so every call is authorized before it runs.
+
+    The function's bound arguments become the call's `args`. Works for plain and `async`
+    functions.
+
+    Args:
+        guard: The guard that makes the decision.
+        tool: Tool name the policy sees, for example `fs.read`.
+
+    Returns:
+        A decorator. The wrapped function raises before running when the call is not
+        allowed.
+
+    Raises:
+        PermissionDenied: (from the wrapped function) the call was denied.
+        ApprovalRequired: (from the wrapped function) the call needs approval; retry the
+            same call once it has been approved.
+        CastellanError: (from the wrapped function) no `guard_context` is active.
+
+    Example:
+        ```python
+        @guarded(guard, tool="fs.read")
+        def read_file(path: str) -> str: ...
+        ```
+    """
 
     def decorate(func: F) -> F:
         signature = inspect.signature(func)
